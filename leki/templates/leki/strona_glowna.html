@@ -1,0 +1,47 @@
+{% extends 'leki/base.html' %}
+
+{% block content %}
+<h1>💊 Moja apteczka</h1>
+
+<h2>Leki w apteczce</h2>
+{% if leki %}
+<table>
+    <tr>
+        <th>Nazwa</th>
+        <th>Substancja aktywna</th>
+        <th>Instrukcja</th>
+    </tr>
+    {% for lek in leki %}
+    <tr>
+        <td>{{ lek.nazwa }}</td>
+        <td>{{ lek.substancja_aktywna }}</td>
+        <td>{{ lek.instrukcja }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>Brak leków w apteczce. <a href="{% url 'dodaj_lek' %}">Dodaj pierwszy lek!</a></p>
+{% endif %}
+
+<h2>Historia przyjęć</h2>
+{% if przyjecia %}
+<table>
+    <tr>
+        <th>Lek</th>
+        <th>Data i godzina</th>
+        <th>Status</th>
+        <th>Samopoczucie</th>
+    </tr>
+    {% for p in przyjecia %}
+    <tr>
+        <td>{{ p.lek.nazwa }}</td>
+        <td>{{ p.data_godzina }}</td>
+        <td>{{ p.get_status_display }}</td>
+        <td>{{ p.notatka_samopoczucia }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>Brak historii przyjęć. <a href="{% url 'dodaj_przyjecie' %}">Zarejestruj przyjęcie!</a></p>
+{% endif %}
+{% endblock %}
