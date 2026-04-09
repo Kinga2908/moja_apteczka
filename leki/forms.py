@@ -1,5 +1,7 @@
 from django import forms
 from .models import Lek, PrzyjecieLeku, UserProfile
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 
 class LekForm(forms.ModelForm):
     class Meta:
@@ -41,3 +43,10 @@ class UserProfileForm(forms.ModelForm):
         labels = {
             'alerty_interakcji': 'Otrzymuj alerty o interakcjach leków',
         }
+
+
+class RejestracjaForm(UserCreationForm):
+    class Meta:
+        model = User
+        fields = ['username', 'password1', 'password2']
+
