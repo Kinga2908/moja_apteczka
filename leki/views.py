@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from .forms import LekForm, PrzyjęcieForm, UserProfileForm
-from .models import Lek, PrzyjecieLeku
+from .models import Lek, PrzyjecieLeku,UserProfile
+
 
 def strona_glowna(request):
     leki = Lek.objects.all()
