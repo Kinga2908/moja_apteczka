@@ -1,0 +1,70 @@
+.fade-card {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.fade-card.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chart-section {
+  margin: 24px 0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.chart-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+#przyjecia-chart {
+  max-height: 260px;
+}
+
+.przyjecie-card {
+  cursor: grab;
+  transition: box-shadow 0.2s, transform 0.2s, background 0.2s;
+  user-select: none;
+}
+
+.przyjecie-card:active {
+  cursor: grabbing;
+}
+
+.przyjecie-card.dragging {
+  opacity: 0.45;
+  transform: scale(0.97);
+  box-shadow: 0 8px 24px rgba(99,102,241,0.25);
+}
+
+.przyjecie-card.drag-over {
+  border: 2px dashed #6366f1;
+  background: #eef2ff;
+  transform: scale(1.01);
+}
+
+.przyjecie-card.drop-success {
+  animation: drop-flash 0.5s ease;
+}
+
+@keyframes drop-flash {
+  0%   { background: #c7d2fe; }
+  100% { background: inherit; }
+}
+
+#przyjecia-lista::before {
+  content: '↕ Przeciągnij karty, aby zmienić kolejność';
+  display: block;
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin-bottom: 8px;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
