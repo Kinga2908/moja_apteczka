@@ -9,4 +9,6 @@ urlpatterns = [
     path('rejestracja/', views.rejestracja, name='rejestracja'),
     path('logowanie/', views.logowanie, name='logowanie'),
     path('wylogowanie/', views.wylogowanie, name='wylogowanie'),
+    path('edytuj-przyjecie/<int:pk>/', views.edytuj_przyjecie, name='edytuj_przyjecie'),
+    path('zmien-status/<int:pk>/', views.zmien_status, name='zmien_status'),
 ]

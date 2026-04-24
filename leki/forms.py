@@ -21,11 +21,18 @@ class LekForm(forms.ModelForm):
 
 
 class PrzyjęcieForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):          
+        super().__init__(*args, **kwargs)
+        self.fields['data_godzina'].input_formats = ['%Y-%m-%dT%H:%M']
+
     class Meta:
         model = PrzyjecieLeku
         fields = ['lek', 'data_godzina', 'status', 'notatka_samopoczucia']
         widgets = {
-            'data_godzina': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'data_godzina': forms.DateTimeInput(
+                attrs={'type': 'datetime-local'},
+                format='%Y-%m-%dT%H:%M'           
+            ),
             'notatka_samopoczucia': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Jak się czujesz po leku?'}),
         }
         labels = {

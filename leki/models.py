@@ -10,6 +10,12 @@ class Lek(models.Model):
         blank=True,
         verbose_name="Interakcje z innymi lekami"
     )
+    uzytkownik = models.ForeignKey(
+    User,
+    on_delete=models.CASCADE,
+    related_name='leki',
+    null=True 
+    )
 
     def __str__(self):
         return self.nazwa

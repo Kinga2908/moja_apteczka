@@ -10,9 +10,9 @@ def rejestracja(request):
     if request.method == 'POST':
         form = RejestracjaForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect('strona_glowna')
+            form.save()                    # zapisz usera
+            # login(request, user)        # ← usuń tę linię
+            return redirect('logowanie')  # ← przekieruj do logowania
     else:
         form = RejestracjaForm()
     return render(request, 'leki/formularz.html', {
@@ -43,11 +43,16 @@ def wylogowanie(request):
 
 @login_required
 def strona_glowna(request):
-    leki = Lek.objects.all()
+    from datetime import date, timedelta
+    offset = int(request.GET.get('tydzien', 0)) 
+    
+    leki = Lek.objects.filter(uzytkownik=request.user)
     przyjecia = PrzyjecieLeku.objects.filter(uzytkownik=request.user)
+    
     return render(request, 'leki/strona_glowna.html', {
         'leki': leki,
-        'przyjecia': przyjecia
+        'przyjecia': przyjecia,
+        'tydzien_offset': offset,
     })
 
 
@@ -56,7 +61,10 @@ def dodaj_lek(request):
     if request.method == 'POST':
         form = LekForm(request.POST)
         if form.is_valid():
-            form.save()
+            lek = form.save(commit=False)
+            lek.uzytkownik = request.user 
+            lek.save()
+            form.save_m2m()              
             return redirect('strona_glowna')
     else:
         form = LekForm()
@@ -98,3 +106,28 @@ def edytuj_profil(request):
         'form': form,
         'tytul': 'Edytuj profil'
     })
+
+@login_required
+def edytuj_przyjecie(request, pk):
+    przyjecie = PrzyjecieLeku.objects.get(pk=pk, uzytkownik=request.user)
+    if request.method == 'POST':
+        form = PrzyjęcieForm(request.POST, instance=przyjecie)
+        if form.is_valid():
+            form.save()
+            return redirect('strona_glowna')
+    else:
+        form = PrzyjęcieForm(instance=przyjecie)
+    return render(request, 'leki/formularz.html', {
+        'form': form,
+        'tytul': 'Edytuj przyjęcie'
+    })
+
+@login_required
+def zmien_status(request, pk):
+    przyjecie = PrzyjecieLeku.objects.get(pk=pk, uzytkownik=request.user)
+    if przyjecie.status == 'zazyte':
+        przyjecie.status = 'niezazyte'
+    else:
+        przyjecie.status = 'zazyte'
+    przyjecie.save()
+    return redirect('strona_glowna')
