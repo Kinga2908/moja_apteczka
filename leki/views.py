@@ -361,18 +361,9 @@ def lista_przyjec(request):
     strona = request.GET.get('strona', 1)
     przyjecia_strona = paginator.get_page(strona)
 
-    return render(request, 'leki/lista_lekow.html', {
-        'leki': leki_strona,
-        'page_obj': leki_strona,  # ← dodaj
-        'paginator': paginator,
-        'nazwa': nazwa,
-        'substancja': substancja,
-        'na_strone': na_strone,
-    })
-
     return render(request, 'leki/lista_przyjec.html', {
         'przyjecia': przyjecia_strona,
-        'page_obj': przyjecia_strona,  # ← dodaj
+        'page_obj': przyjecia_strona,
         'paginator': paginator,
         'nazwa_leku': nazwa_leku,
         'status': status,
@@ -380,5 +371,4 @@ def lista_przyjec(request):
         'samopoczucie': samopoczucie,
         'na_strone': na_strone,
     })
-    
     
