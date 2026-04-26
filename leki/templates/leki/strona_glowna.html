@@ -68,9 +68,20 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h2 class="mb-0 fs-5"><i class="fas fa-history me-2"></i>Historia przyjęć</h2>
-        <a href="{% url 'dodaj_przyjecie' %}" class="btn btn-primary btn-sm">
-            <i class="fas fa-plus me-1"></i>Dodaj przyjęcie
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{% url 'eksport_csv' %}" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-file-csv me-1"></i>Eksport CSV
+            </a>
+            <a href="{% url 'eksport_xlsx' %}" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-file-excel me-1"></i>Eksport XLSX
+            </a>
+            <a href="{% url 'import_csv' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-upload me-1"></i>Import CSV
+            </a>
+            <a href="{% url 'dodaj_przyjecie' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus me-1"></i>Dodaj przyjęcie
+            </a>
+        </div>
     </div>
     <div class="card-body">
         {% if przyjecia %}
@@ -88,10 +99,8 @@
                     <th><i class="fas fa-cog me-1"></i>Akcje</th>
                 </tr>
             </thead>
-            <!-- id="przyjecia-tbody" aktywuje drag & drop -->
             <tbody id="przyjecia-tbody">
                 {% for p in przyjecia %}
-                <!-- data-date dostarcza danych do wykresu (element 2) -->
                 <tr class="przyjecie-row fade-card" data-date="{{ p.data_godzina|date:'Y-m-d' }}">
                     <td style="color:#aaa;">
                         <i class="fas fa-grip-vertical"></i>
@@ -127,7 +136,6 @@
 </div>
 
 <style>
-  /* --- ELEMENT 1: Fade-in on scroll --- */
   .fade-card {
     opacity: 0;
     transform: translateY(20px);
@@ -137,7 +145,6 @@
     opacity: 1;
     transform: translateY(0);
   }
-
   .przyjecie-row.dragging {
     opacity: 0.4;
     background: #e8f5e9 !important;
@@ -173,9 +180,9 @@
   const canvas = document.getElementById('przyjecia-chart');
   if (!canvas) return;
 
-  const offset = {{ tydzien_offset }};  
+  const offset = {{ tydzien_offset }};
   const today = new Date();
-  today.setDate(today.getDate() + offset * 7);  
+  today.setDate(today.getDate() + offset * 7);
 
   const labels = [];
   const counts = {};
@@ -191,7 +198,6 @@
     dateKeys.push(key);
   }
 
-  // Pokaż zakres dat
   const zakres = document.getElementById('zakres-dat');
   if (zakres && dateKeys.length) {
     zakres.textContent = `${dateKeys[0]} – ${dateKeys[6]}`;

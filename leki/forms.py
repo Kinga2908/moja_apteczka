@@ -57,3 +57,8 @@ class RejestracjaForm(UserCreationForm):
         model = User
         fields = ['username', 'password1', 'password2']
 
+class ImportCSVForm(forms.Form):
+    plik = forms.FileField(
+        label='Plik CSV',
+        help_text='Plik musi zawierać kolumny: nazwa, substancja_aktywna, instrukcja'
+    )

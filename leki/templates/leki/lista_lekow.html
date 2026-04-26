@@ -1,0 +1,84 @@
+{% extends 'leki/base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-capsules me-2"></i>Leki w apteczce</h1>
+    <a href="{% url 'dodaj_lek' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>Dodaj lek
+    </a>
+</div>
+
+<!-- Formularz filtrowania -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="fs-5 mb-0"><i class="fas fa-search me-2"></i>Szukaj i filtruj</h2>
+    </div>
+    <div class="card-body">
+        <form method="get">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Nazwa leku</label>
+                    <input type="text" name="nazwa" value="{{ nazwa }}"
+                           class="form-control" placeholder="Np. Apap...">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Substancja aktywna</label>
+                    <input type="text" name="substancja" value="{{ substancja }}"
+                           class="form-control" placeholder="Np. paracetamol...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Wyników na stronę</label>
+                    <select name="na_strone" class="form-select">
+                        <option value="5" {% if na_strone == 5 %}selected{% endif %}>5</option>
+                        <option value="10" {% if na_strone == 10 %}selected{% endif %}>10</option>
+                        <option value="25" {% if na_strone == 25 %}selected{% endif %}>25</option>
+                        <option value="50" {% if na_strone == 50 %}selected{% endif %}>50</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-1"></i>Szukaj
+                    </button>
+                    <a href="{% url 'lista_lekow' %}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabela -->
+<div class="card">
+    <div class="card-body">
+        {% if leki %}
+        <p class="text-muted small">Znaleziono {{ paginator.count }} leków</p>
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th><i class="fas fa-pills me-1"></i>Nazwa</th>
+                    <th><i class="fas fa-flask me-1"></i>Substancja aktywna</th>
+                    <th><i class="fas fa-info-circle me-1"></i>Instrukcja</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lek in leki %}
+                <tr>
+                    <td>{{ lek.nazwa }}</td>
+                    <td>{{ lek.substancja_aktywna }}</td>
+                    <td>{{ lek.instrukcja }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Stronicowanie -->
+        {% include 'leki/paginacja.html' %}
+
+        {% else %}
+        <p class="text-muted"><i class="fas fa-info-circle me-1"></i>Brak wyników.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

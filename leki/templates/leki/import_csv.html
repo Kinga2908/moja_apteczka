@@ -1,0 +1,66 @@
+{% extends 'leki/base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h1 class="fs-4 mb-0"><i class="fas fa-file-csv me-2"></i>{{ tytul }}</h1>
+            </div>
+            <div class="card-body">
+
+                {% if bledy %}
+                <div class="alert alert-danger">
+                    <strong>Błędy:</strong>
+                    <ul class="mb-0 mt-1">
+                        {% for b in bledy %}<li>{{ b }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Plik CSV musi zawierać nagłówki: <code>nazwa</code>, <code>substancja_aktywna</code>, <code>instrukcja</code>
+                    <br>
+                    <small>Przykład: <code>Apap,paracetamol,1 tabletka przy bólu głowy</code></small>
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {% for field in form %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% if field.errors %}
+                        <div class="text-danger small">{{ field.errors }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-1"></i>Importuj
+                        </button>
+                        <a href="{% url 'strona_glowna' %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Anuluj
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Podgląd wykresu PNG serwowanego dynamicznie -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="fs-5 mb-0"><i class="fas fa-chart-line me-2"></i>Twoje przyjęcia (ostatnie 14 dni)</h2>
+            </div>
+            <div class="card-body text-center">
+                <img src="{% url 'wykres_png' %}" alt="Wykres przyjęć" class="img-fluid rounded shadow-sm">
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

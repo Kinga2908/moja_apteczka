@@ -11,4 +11,11 @@ urlpatterns = [
     path('wylogowanie/', views.wylogowanie, name='wylogowanie'),
     path('edytuj-przyjecie/<int:pk>/', views.edytuj_przyjecie, name='edytuj_przyjecie'),
     path('zmien-status/<int:pk>/', views.zmien_status, name='zmien_status'),
+    path('eksport/csv/', views.eksport_csv, name='eksport_csv'),
+    path('eksport/xlsx/', views.eksport_xlsx, name='eksport_xlsx'),
+    path('wykres.png', views.wykres_png, name='wykres_png'),
+    path('import-csv/', views.import_csv, name='import_csv'),
+    path('leki/', views.lista_lekow, name='lista_lekow'),
+    path('przyjecia/', views.lista_przyjec, name='lista_przyjec'),
 ]
+

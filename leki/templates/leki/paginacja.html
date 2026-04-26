@@ -1,0 +1,62 @@
+{% if paginator.num_pages > 1 %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <!-- Nawigacja stron -->
+    <nav>
+        <ul class="pagination mb-0">
+            <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                <a class="page-link" href="?{% for key, val in request.GET.items %}{% if key != 'strona' %}{{ key }}={{ val }}&{% endif %}{% endfor %}strona=1">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+            </li>
+            <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                <a class="page-link" href="?{% for key, val in request.GET.items %}{% if key != 'strona' %}{{ key }}={{ val }}&{% endif %}{% endfor %}strona={{ page_obj.previous_page_number|default:1 }}">
+                    <i class="fas fa-angle-left"></i>
+                </a>
+            </li>
+
+            {% for num in paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+                {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% for key, val in request.GET.items %}{% if key != 'strona' %}{{ key }}={{ val }}&{% endif %}{% endfor %}strona={{ num }}">{{ num }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                <a class="page-link" href="?{% for key, val in request.GET.items %}{% if key != 'strona' %}{{ key }}={{ val }}&{% endif %}{% endfor %}strona={{ page_obj.next_page_number|default:paginator.num_pages }}">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+            </li>
+            <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                <a class="page-link" href="?{% for key, val in request.GET.items %}{% if key != 'strona' %}{{ key }}={{ val }}&{% endif %}{% endfor %}strona={{ paginator.num_pages }}">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Skok do strony -->
+    <form method="get" class="d-flex align-items-center gap-2">
+        {% for key, val in request.GET.items %}
+            {% if key != 'strona' %}
+            <input type="hidden" name="{{ key }}" value="{{ val }}">
+            {% endif %}
+        {% endfor %}
+        <label class="mb-0 small text-muted">Przejdź do strony:</label>
+        <input type="number" name="strona" min="1" max="{{ paginator.num_pages }}"
+               class="form-control form-control-sm" style="width: 70px;"
+               value="{{ page_obj.number }}">
+        <button type="submit" class="btn btn-sm btn-outline-primary">OK</button>
+    </form>
+
+    <span class="text-muted small">
+        Strona {{ page_obj.number }} z {{ paginator.num_pages }}
+    </span>
+
+</div>
+{% endif %}
