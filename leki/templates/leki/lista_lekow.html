@@ -1,0 +1,237 @@
+{% extends 'leki/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-capsules me-2"></i>Lista leków</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'import_csv' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-file-csv me-1"></i>Import CSV
+        </a>
+        <a href="{% url 'dodaj_lek' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>Dodaj lek
+        </a>
+    </div>
+</div>
+
+{# ── FILTROWANIE ────────────────────────────────────────────────────────────── #}
+<div class="card mb-4" id="karta-filtrowania">
+    <div class="card-header d-flex justify-content-between align-items-center"
+         id="naglowek-filtrowania" style="cursor:pointer;"
+         onclick="toggleFiltr()">
+        <h5 class="mb-0">
+            <i class="fas fa-filter me-2"></i>Filtrowanie i wyszukiwanie
+        </h5>
+        <i class="fas fa-chevron-down" id="ikona-filtr"></i>
+    </div>
+    <div id="panel-filtrowania">
+        <div class="card-body">
+            <form method="get" id="form-filtr">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">{{ form.nazwa.label }}</label>
+                        {{ form.nazwa }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">{{ form.substancja.label }}</label>
+                        {{ form.substancja }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">{{ form.kod_kreskowy.label }}</label>
+                        {{ form.kod_kreskowy }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">{{ form.cena_min.label }}</label>
+                        {{ form.cena_min }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">{{ form.cena_max.label }}</label>
+                        {{ form.cena_max }}
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-1"></i>Szukaj
+                        </button>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <a href="{% url 'lista_lekow' %}" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-times me-1"></i>Wyczyść
+                        </a>
+                    </div>
+                </div>
+                {# Zachowaj na_stronie przy filtrowaniu #}
+                <input type="hidden" name="na_stronie" value="{{ wyniki_na_stronie }}">
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ── TABELA ─────────────────────────────────────────────────────────────────── #}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="small text-muted">
+            Znaleziono <strong>{{ paginator.count }}</strong> leków
+            (strona {{ leki.number }} z {{ paginator.num_pages }})
+        </span>
+        <div class="d-flex align-items-center gap-2">
+            <label class="small mb-0">Wyników na stronę:</label>
+            <select class="form-select form-select-sm" style="width:auto;"
+                    onchange="zmienNaStronie(this.value)">
+                {% for opcja in opcje_na_stronie %}
+                <option value="{{ opcja }}" {% if opcja == wyniki_na_stronie %}selected{% endif %}>
+                    {{ opcja }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if leki %}
+        <table class="table table-hover mb-0" id="tabela-lekow">
+            <thead>
+                <tr>
+                    <th><i class="fas fa-pills me-1"></i>Nazwa</th>
+                    <th><i class="fas fa-flask me-1"></i>Substancja aktywna</th>
+                    <th><i class="fas fa-tag me-1"></i>Cena opak.</th>
+                    <th><i class="fas fa-tag me-1"></i>Koszt/dawkę</th>
+                    <th><i class="fas fa-barcode me-1"></i>Kod EAN</th>
+                    <th><i class="fas fa-info-circle me-1"></i>Instrukcja</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lek in leki %}
+                <tr class="wiersz-leku">
+                    <td><strong>{{ lek.nazwa }}</strong></td>
+                    <td>{{ lek.substancja_aktywna }}</td>
+                    <td>{% if lek.cena %}{{ lek.cena }} zł{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                    <td>
+                        {% if lek.cena_za_dawke %}
+                        <span class="badge bg-light text-dark border">
+                            {{ lek.cena_za_dawke|floatformat:2 }} zł
+                        </span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td>{% if lek.kod_kreskowy %}<code>{{ lek.kod_kreskowy }}</code>{% else %}—{% endif %}</td>
+                    <td class="small text-muted">{{ lek.instrukcja|truncatechars:50 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            <i class="fas fa-search fa-2x mb-3 d-block"></i>
+            Brak leków spełniających kryteria wyszukiwania.
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── PAGINACJA ──────────────────────────────────────────────────────────── #}
+    {% if paginator.num_pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {% if leki.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{{ get_params }}&strona=1&na_stronie={{ wyniki_na_stronie }}">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{{ get_params }}&strona={{ leki.previous_page_number }}&na_stronie={{ wyniki_na_stronie }}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in paginator.page_range %}
+                    {% if num == leki.number %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num >= leki.number|add:"-2" and num <= leki.number|add:"2" %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{{ get_params }}&strona={{ num }}&na_stronie={{ wyniki_na_stronie }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if leki.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{{ get_params }}&strona={{ leki.next_page_number }}&na_stronie={{ wyniki_na_stronie }}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{{ get_params }}&strona={{ paginator.num_pages }}&na_stronie={{ wyniki_na_stronie }}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+
+        {# Skok do strony #}
+        <form method="get" class="d-flex gap-2 align-items-center" id="form-skok">
+            {% for key, val in request.GET.items %}
+                {% if key != 'strona' %}
+                <input type="hidden" name="{{ key }}" value="{{ val }}">
+                {% endif %}
+            {% endfor %}
+            <input type="hidden" name="na_stronie" value="{{ wyniki_na_stronie }}">
+            <label class="small mb-0">Przejdź do strony:</label>
+            <input type="number" name="strona" min="1" max="{{ paginator.num_pages }}"
+                   value="{{ leki.number }}"
+                   class="form-control form-control-sm" style="width:70px;">
+            <button type="submit" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-arrow-right"></i>
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// ── JS ELEMENT 1: Animowane rozwijanie/zwijanie panelu filtrów ─────────────────
+function toggleFiltr() {
+    const panel = document.getElementById('panel-filtrowania');
+    const ikona = document.getElementById('ikona-filtr');
+    if (panel.style.display === 'none') {
+        panel.style.display = '';
+        panel.style.animation = 'slideDown 0.3s ease';
+        ikona.classList.replace('fa-chevron-right', 'fa-chevron-down');
+    } else {
+        panel.style.animation = 'slideUp 0.3s ease';
+        setTimeout(() => { panel.style.display = 'none'; }, 280);
+        ikona.classList.replace('fa-chevron-down', 'fa-chevron-right');
+    }
+}
+
+// Jeśli są aktywne filtry – pokaż panel; jeśli nie – zwiń
+(function(){
+    const params = new URLSearchParams(window.location.search);
+    const filtrujace = ['nazwa','substancja','cena_min','cena_max','kod_kreskowy'];
+    const maFiltr = filtrujace.some(k => params.get(k));
+    if (!maFiltr) {
+        // Zwiń panel domyślnie gdy brak filtrów
+        // (opcjonalnie – zostaw otwarty jeśli wolisz)
+    }
+})();
+
+@keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideUp   { from { opacity:1; transform:translateY(0); }   to { opacity:0; transform:translateY(-10px); } }
+
+// ── JS ELEMENT 2: Podświetlanie wierszy tabeli z efektem ─────────────────────
+document.querySelectorAll('.wiersz-leku').forEach(row => {
+    row.style.transition = 'background 0.2s ease';
+    row.addEventListener('mouseenter', () => row.style.background = '#e8f5e9');
+    row.addEventListener('mouseleave', () => row.style.background = '');
+});
+
+// ── Zmiana liczby wyników na stronę ──────────────────────────────────────────
+function zmienNaStronie(wartosc) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('na_stronie', wartosc);
+    url.searchParams.set('strona', '1');
+    window.location.href = url.toString();
+}
+</script>
+{% endblock %}

@@ -17,6 +17,68 @@
         .btn-primary:hover { background: #235f3a; border-color: #235f3a; }
         h1, h2 { color: #2c7a4b; }
         .table thead { background: #2c7a4b; color: white; }
+        .page-item.active .page-link { background-color: #2c7a4b; border-color: #2c7a4b; }
+        .page-link { color: #2c7a4b; }
+        .page-link:hover { color: #235f3a; }
+
+        /* Powiadomienia */
+        #notification-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 9999;
+            width: 340px;
+        }
+        .med-notification {
+            background: white;
+            border-left: 4px solid #2c7a4b;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: slideInRight 0.4s ease;
+        }
+        .med-notification.urgent {
+            border-left-color: #dc3545;
+        }
+        .med-notification-icon {
+            font-size: 1.4rem;
+            margin-top: 2px;
+        }
+        .med-notification-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0;
+        }
+        .med-notification-close:hover { color: #333; }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(40px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to   { opacity: 0; transform: translateX(40px); }
+        }
+
+        /* Dzwonek w navbarze */
+        .bell-badge {
+            position: relative;
+            display: inline-block;
+        }
+        .bell-badge .badge {
+            position: absolute;
+            top: -6px;
+            right: -10px;
+            font-size: 0.6rem;
+            padding: 2px 5px;
+        }
     </style>
 </head>
 <body>
@@ -30,17 +92,41 @@
             </button>
             <div class="collapse navbar-collapse" id="navMenu">
                 <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dodaj_lek' %}">
-                            <i class="fas fa-plus-circle me-1"></i>Dodaj lek
+                        <a class="nav-link" href="{% url 'lista_lekow' %}">
+                            <i class="fas fa-capsules me-1"></i>Leki
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'lista_przyjec' %}">
+                            <i class="fas fa-history me-1"></i>Przyjęcia
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'dodaj_przyjecie' %}">
-                            <i class="fas fa-clock me-1"></i>Przyjęcie leku
+                            <i class="fas fa-clock me-1"></i>Nowe przyjęcie
                         </a>
                     </li>
-                    {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'harmonogram_lista' %}">
+                            <span class="bell-badge">
+                                <i class="fas fa-bell me-1"></i>
+                                <span class="badge bg-danger" id="bell-count" style="display:none;"></span>
+                            </span>
+                            Przypomnienia
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'raport' %}">
+                            <i class="fas fa-chart-pie me-1"></i>Raport
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'skaner' %}">
+                            <i class="fas fa-barcode me-1"></i>Skaner
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'edytuj_profil' %}">
                             <i class="fas fa-user me-1"></i>{{ user.username }}
@@ -68,10 +154,108 @@
         </div>
     </nav>
 
+    <!-- Kontener powiadomień -->
+    <div id="notification-container"></div>
+
     <div class="container">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
         {% block content %}{% endblock %}
     </div>
 
     <script src="{% static 'leki/js/bootstrap.min.js' %}"></script>
+
+    {% if user.is_authenticated %}
+    <script>
+    // ── Powiadomienia o lekach na stronie ─────────────────────────────────────
+    (function() {
+        const STORAGE_KEY = 'medimate_shown_notifications';
+        const OKNO_MINUT = 15; // pokaż powiadomienie 15 min przed i po godzinie
+
+        function pobierzHarmonogram() {
+            fetch('/przypomnienia/api/')
+                .then(r => r.json())
+                .then(data => sprawdzGodziny(data.harmonogramy))
+                .catch(() => {}); // cicho ignoruj błędy
+        }
+
+        function sprawdzGodziny(harmonogramy) {
+            const teraz = new Date();
+            const terazMin = teraz.getHours() * 60 + teraz.getMinutes();
+            const shown = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]');
+            let nowePowiadomienia = 0;
+
+            harmonogramy.forEach(h => {
+                const [godz, min] = h.godzina.split(':').map(Number);
+                const hMin = godz * 60 + min;
+                const roznica = Math.abs(terazMin - hMin);
+                const klucz = `${h.id}_${teraz.toDateString()}`;
+
+                if (roznica <= OKNO_MINUT && !shown.includes(klucz)) {
+                    pokazPowiadomienie(h, roznica);
+                    shown.push(klucz);
+                    nowePowiadomienia++;
+                }
+            });
+
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(shown));
+
+            // Aktualizuj licznik na dzwonku
+            if (nowePowiadomienia > 0) {
+                const badge = document.getElementById('bell-count');
+                if (badge) {
+                    badge.textContent = nowePowiadomienia;
+                    badge.style.display = '';
+                }
+            }
+        }
+
+        function pokazPowiadomienie(h, roznicaMin) {
+            const container = document.getElementById('notification-container');
+            const urgent = roznicaMin <= 5;
+
+            const el = document.createElement('div');
+            el.className = 'med-notification' + (urgent ? ' urgent' : '');
+            el.innerHTML = `
+                <div class="med-notification-icon">
+                    ${urgent ? '🔴' : '💊'}
+                </div>
+                <div>
+                    <div class="fw-bold">${urgent ? 'Czas na lek!' : 'Przypomnienie o leku'}</div>
+                    <div class="small"><strong>${h.lek_nazwa}</strong></div>
+                    <div class="small text-muted">Zaplanowano: ${h.godzina}</div>
+                    <a href="/dodaj-przyjecie/" class="btn btn-sm btn-primary mt-1" style="font-size:.75rem;">
+                        <i class="fas fa-check me-1"></i>Potwierdź przyjęcie
+                    </a>
+                </div>
+                <button class="med-notification-close" onclick="zamknijPowiadomienie(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(el);
+
+            // Auto-zamknij po 30 sekundach
+            setTimeout(() => zamknijPowiadomienie(el.querySelector('.med-notification-close')), 30000);
+        }
+
+        window.zamknijPowiadomienie = function(btn) {
+            const el = btn.closest('.med-notification');
+            el.style.animation = 'fadeOut 0.3s ease forwards';
+            setTimeout(() => el.remove(), 300);
+        };
+
+        // Sprawdzaj co minutę
+        pobierzHarmonogram();
+        setInterval(pobierzHarmonogram, 60000);
+    })();
+    </script>
+    {% endif %}
 </body>
 </html>

@@ -1,10 +1,47 @@
 {% extends 'leki/base.html' %}
-{% block content %}
 
+{% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-briefcase-medical me-2"></i>Moja apteczka</h1>
 </div>
 
+{# ── NOWE: Koszt tygodnia ─────────────────────────────────────────────────── #}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white" style="background:#2c7a4b;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-wallet fa-2x me-3 opacity-75"></i>
+                    <div>
+                        <div class="small opacity-75">Wydano w tym tygodniu</div>
+                        <div class="fs-4 fw-bold">{{ koszt_tygodnia|floatformat:2 }} zł</div>
+                        <div class="small opacity-75">{{ tydzien_od }} – {{ tydzien_do }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <a href="{% url 'raport' %}" class="btn btn-outline-success w-100">
+                    <i class="fas fa-chart-pie me-2"></i>Raport miesięczny
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <a href="{% url 'skaner' %}" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-barcode me-2"></i>Skaner kodów
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Wykres przyjęć ──────────────────────────────────────────────────────── #}
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h2 class="mb-0 fs-5"><i class="fas fa-chart-bar me-2"></i>Przyjęcia leków – 7 dni</h2>
@@ -29,12 +66,21 @@
     </div>
 </div>
 
+{# ── Leki w apteczce ─────────────────────────────────────────────────────── #}
 <div class="card mb-4 fade-card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h2 class="mb-0 fs-5"><i class="fas fa-capsules me-2"></i>Leki w apteczce</h2>
-        <a href="{% url 'dodaj_lek' %}" class="btn btn-primary btn-sm">
-            <i class="fas fa-plus me-1"></i>Dodaj lek
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{% url 'import_csv' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-file-csv me-1"></i>Import CSV
+            </a>
+            <a href="{% url 'harmonogram_lista' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-bell me-1"></i>Przypomnienia
+            </a>
+            <a href="{% url 'dodaj_lek' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus me-1"></i>Dodaj lek
+            </a>
+        </div>
     </div>
     <div class="card-body">
         {% if leki %}
@@ -43,15 +89,33 @@
                 <tr>
                     <th><i class="fas fa-pills me-1"></i>Nazwa</th>
                     <th><i class="fas fa-flask me-1"></i>Substancja aktywna</th>
+                    <th><i class="fas fa-tag me-1"></i>Cena / dawka</th>
+                    <th><i class="fas fa-barcode me-1"></i>Kod EAN</th>
                     <th><i class="fas fa-info-circle me-1"></i>Instrukcja</th>
                 </tr>
             </thead>
             <tbody>
                 {% for lek in leki %}
                 <tr class="fade-card">
-                    <td>{{ lek.nazwa }}</td>
+                    <td><strong>{{ lek.nazwa }}</strong></td>
                     <td>{{ lek.substancja_aktywna }}</td>
-                    <td>{{ lek.instrukcja }}</td>
+                    <td>
+                        {% if lek.cena_za_dawke %}
+                            <span class="badge bg-light text-dark border">
+                                {{ lek.cena_za_dawke|floatformat:2 }} zł/dawkę
+                            </span>
+                        {% elif lek.cena %}
+                            <span class="text-muted small">{{ lek.cena }} zł/opak.</span>
+                        {% else %}
+                            <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if lek.kod_kreskowy %}
+                            <code>{{ lek.kod_kreskowy }}</code>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ lek.instrukcja|truncatechars:50 }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -59,12 +123,14 @@
         {% else %}
         <p class="text-muted">
             <i class="fas fa-info-circle me-1"></i>
-            Brak leków. <a href="{% url 'dodaj_lek' %}">Dodaj pierwszy lek!</a>
+            Brak leków. <a href="{% url 'dodaj_lek' %}">Dodaj pierwszy lek</a>
+            lub <a href="{% url 'import_csv' %}">wgraj plik CSV</a>.
         </p>
         {% endif %}
     </div>
 </div>
 
+{# ── Historia przyjęć ────────────────────────────────────────────────────── #}
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h2 class="mb-0 fs-5"><i class="fas fa-history me-2"></i>Historia przyjęć</h2>
@@ -74,13 +140,10 @@
     </div>
     <div class="card-body">
         {% if przyjecia %}
-        <p class="text-muted small mb-2">
-            <i class="fas fa-arrows-alt me-1"></i>Przeciągnij wiersze, aby zmienić kolejność
-        </p>
         <table class="table table-hover">
             <thead>
                 <tr>
-                    <th style="width:24px;"></th>
+                    <th></th>
                     <th><i class="fas fa-pills me-1"></i>Lek</th>
                     <th><i class="fas fa-calendar me-1"></i>Data i godzina</th>
                     <th><i class="fas fa-check-circle me-1"></i>Status</th>
@@ -88,16 +151,12 @@
                     <th><i class="fas fa-cog me-1"></i>Akcje</th>
                 </tr>
             </thead>
-            <!-- id="przyjecia-tbody" aktywuje drag & drop -->
             <tbody id="przyjecia-tbody">
                 {% for p in przyjecia %}
-                <!-- data-date dostarcza danych do wykresu (element 2) -->
                 <tr class="przyjecie-row fade-card" data-date="{{ p.data_godzina|date:'Y-m-d' }}">
-                    <td style="color:#aaa;">
-                        <i class="fas fa-grip-vertical"></i>
-                    </td>
+                    <td style="color:#aaa;"><i class="fas fa-grip-vertical"></i></td>
                     <td>{{ p.lek.nazwa }}</td>
-                    <td>{{ p.data_godzina }}</td>
+                    <td>{{ p.data_godzina|date:"d.m.Y H:i" }}</td>
                     <td>
                         <a href="{% url 'zmien_status' p.pk %}" style="text-decoration:none;">
                             {% if p.status == 'zazyte' %}
@@ -107,12 +166,12 @@
                             {% endif %}
                         </a>
                     </td>
+                    <td class="small text-muted">{{ p.notatka_samopoczucia|truncatechars:40 }}</td>
                     <td>
                         <a href="{% url 'edytuj_przyjecie' p.pk %}" class="btn btn-sm btn-outline-secondary">
                             <i class="fas fa-edit"></i>
                         </a>
                     </td>
-                    <td>{{ p.notatka_samopoczucia }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -126,155 +185,45 @@
     </div>
 </div>
 
+{# ── Style i skrypty ─────────────────────────────────────────────────────── #}
 <style>
-  /* --- ELEMENT 1: Fade-in on scroll --- */
-  .fade-card {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.5s ease, transform 0.5s ease;
-  }
-  .fade-card.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .przyjecie-row.dragging {
-    opacity: 0.4;
-    background: #e8f5e9 !important;
-  }
-  .przyjecie-row.drag-over {
-    border-top: 3px solid #2c7a4b;
-  }
-  .przyjecie-row.drop-flash {
-    animation: flash 0.4s ease;
-  }
-  @keyframes flash {
-    0%   { background: #c8e6c9; }
-    100% { background: transparent; }
-  }
+.fade-card { opacity:0; transform:translateY(20px); transition:opacity .5s ease,transform .5s ease; }
+.fade-card.visible { opacity:1; transform:translateY(0); }
+.przyjecie-row.dragging { opacity:.4; background:#e8f5e9 !important; }
+.przyjecie-row.drag-over { border-top:3px solid #2c7a4b; }
+@keyframes flash { 0%{background:#c8e6c9;} 100%{background:transparent;} }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-(function() {
-  const cards = document.querySelectorAll('.fade-card');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry, i) => {
-      if (entry.isIntersecting) {
-        setTimeout(() => entry.target.classList.add('visible'), i * 80);
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.05 });
-  cards.forEach(card => observer.observe(card));
+(function(){
+  document.querySelectorAll('.fade-card').forEach((el, i) => {
+    new IntersectionObserver(entries => {
+      entries.forEach(e => { if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('visible'),i*80); } });
+    }, {threshold:.05}).observe(el);
+  });
 })();
 
-(function() {
+(function(){
   const canvas = document.getElementById('przyjecia-chart');
   if (!canvas) return;
-
-  const offset = {{ tydzien_offset }};  
-  const today = new Date();
-  today.setDate(today.getDate() + offset * 7);  
-
-  const labels = [];
-  const counts = {};
-  const dateKeys = [];
-
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    const label = d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'numeric' });
-    labels.push(label);
-    counts[key] = 0;
-    dateKeys.push(key);
+  const offset = Number("{{ tydzien_offset|default:'0' }}");
+  const today = new Date(); today.setDate(today.getDate() + offset * 7);
+  const labels=[], counts={}, dateKeys=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(today); d.setDate(today.getDate()-i);
+    const key=d.toISOString().slice(0,10);
+    const label=d.toLocaleDateString('pl-PL',{weekday:'short',day:'numeric',month:'numeric'});
+    labels.push(label); counts[key]=0; dateKeys.push(key);
   }
-
-  // Pokaż zakres dat
-  const zakres = document.getElementById('zakres-dat');
-  if (zakres && dateKeys.length) {
-    zakres.textContent = `${dateKeys[0]} – ${dateKeys[6]}`;
-  }
-
-  document.querySelectorAll('[data-date]').forEach(el => {
-    const d = el.dataset.date;
-    if (d in counts) counts[d]++;
-  });
-
-  new Chart(canvas, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Liczba przyjęć',
-        data: Object.values(counts),
-        backgroundColor: 'rgba(44, 122, 75, 0.7)',
-        borderColor: 'rgba(44, 122, 75, 1)',
-        borderWidth: 2,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} przyjęć` } }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          suggestedMax: 5,
-          ticks: { stepSize: 1 },
-          grid: { color: 'rgba(0,0,0,0.05)' }
-        },
-        x: { grid: { display: false } }
-      }
-    }
-  });
-})();
-
-(function() {
-  const tbody = document.getElementById('przyjecia-tbody');
-  if (!tbody) return;
-
-  let dragged = null;
-
-  tbody.querySelectorAll('.przyjecie-row').forEach(row => {
-    row.setAttribute('draggable', 'true');
-
-    row.addEventListener('dragstart', () => {
-      dragged = row;
-      setTimeout(() => row.classList.add('dragging'), 0);
-    });
-
-    row.addEventListener('dragend', () => {
-      row.classList.remove('dragging');
-      tbody.querySelectorAll('.przyjecie-row').forEach(r => r.classList.remove('drag-over'));
-      dragged = null;
-    });
-
-    row.addEventListener('dragover', e => {
-      e.preventDefault();
-      if (row !== dragged) row.classList.add('drag-over');
-    });
-
-    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
-
-    row.addEventListener('drop', e => {
-      e.preventDefault();
-      row.classList.remove('drag-over');
-      if (dragged && dragged !== row) {
-        const rows = [...tbody.querySelectorAll('.przyjecie-row')];
-        const fromIdx = rows.indexOf(dragged);
-        const toIdx   = rows.indexOf(row);
-        tbody.insertBefore(dragged, fromIdx < toIdx ? row.nextSibling : row);
-        dragged.classList.add('drop-flash');
-        setTimeout(() => dragged.classList.remove('drop-flash'), 400);
-      }
-    });
+  const zakres=document.getElementById('zakres-dat');
+  if(zakres&&dateKeys.length) zakres.textContent=`${dateKeys[0]} – ${dateKeys[6]}`;
+  document.querySelectorAll('[data-date]').forEach(el=>{ const d=el.dataset.date; if(d in counts) counts[d]++; });
+  new Chart(canvas,{
+    type:'bar',
+    data:{labels,datasets:[{label:'Liczba przyjęć',data:Object.values(counts),backgroundColor:'rgba(44,122,75,.7)',borderColor:'rgba(44,122,75,1)',borderWidth:2,borderRadius:6}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,suggestedMax:5,ticks:{stepSize:1}},x:{grid:{display:false}}}}
   });
 })();
 </script>
-
 {% endblock %}

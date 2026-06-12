@@ -1,0 +1,102 @@
+{% extends 'leki/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-8">
+
+<div class="card">
+    <div class="card-header">
+        <h1 class="fs-4 mb-0"><i class="fas fa-file-csv me-2"></i>Import leków z pliku CSV</h1>
+    </div>
+    <div class="card-body">
+
+        {# Komunikaty #}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+
+        {# Instrukcja formatu #}
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <h5><i class="fas fa-table me-2 text-success"></i>Format pliku CSV</h5>
+                <p class="mb-2 small">Plik musi być zapisany w <strong>UTF-8</strong> (lub Latin-2).
+                Pierwsza linia to nagłówki. Separator: <strong>przecinek</strong>.</p>
+
+                <strong class="small">Wymagane kolumny:</strong>
+                <ul class="small mb-2">
+                    <li><code>nazwa</code> – nazwa leku (np. Apap)</li>
+                    <li><code>substancja_aktywna</code> – np. paracetamol</li>
+                    <li><code>instrukcja</code> – dawkowanie i wskazówki</li>
+                </ul>
+                <strong class="small">Opcjonalne kolumny:</strong>
+                <ul class="small mb-0">
+                    <li><code>cena</code> – cena opakowania w zł (np. 12.50)</li>
+                    <li><code>ilosc_w_opakowaniu</code> – liczba tabletek (np. 20)</li>
+                    <li><code>kod_kreskowy</code> – kod EAN z opakowania</li>
+                </ul>
+            </div>
+        </div>
+
+        {# Przykład #}
+        <div class="card border-success mb-4">
+            <div class="card-header text-success small fw-bold">
+                <i class="fas fa-eye me-1"></i>Przykład pliku CSV
+            </div>
+            <div class="card-body p-2">
+<pre class="mb-0 small"><code>nazwa,substancja_aktywna,instrukcja,cena,ilosc_w_opakowaniu,kod_kreskowy
+Apap,paracetamol,1 tabletka co 6 godzin po jedzeniu,8.99,10,5900516992032
+Ibuprofen 400,ibuprofen,1 tabletka 3 razy dziennie,12.50,20,5909990555123
+Acard 75,kwas acetylosalicylowy,1 tabletka rano na czczo,6.49,30,5901475006105
+Witamina D3,cholekalcyferol,1 kapsulka dziennie z posilkiem,24.90,60,
+</code></pre>
+            </div>
+        </div>
+
+        {# Pobierz szablon #}
+        <p class="mb-3">
+            <a href="#" id="pobierz-szablon" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-download me-1"></i>Pobierz pusty szablon CSV
+            </a>
+        </p>
+
+        {# Formularz uploadu #}
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label fw-bold">{{ form.plik_csv.label }}</label>
+                {{ form.plik_csv }}
+                <div class="form-text">{{ form.plik_csv.help_text }}</div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload me-1"></i>Importuj leki
+                </button>
+                <a href="{% url 'strona_glowna' %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i>Anuluj
+                </a>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+</div>
+</div>
+
+<script>
+// Generuj i pobierz szablon CSV po stronie klienta
+document.getElementById('pobierz-szablon').addEventListener('click', function(e){
+    e.preventDefault();
+    const naglowek = 'nazwa,substancja_aktywna,instrukcja,cena,ilosc_w_opakowaniu,kod_kreskowy\n';
+    const przyklad = 'Apap,paracetamol,1 tabletka co 6 godzin po jedzeniu,8.99,10,5900516992032\n';
+    const blob = new Blob(['\uFEFF' + naglowek + przyklad], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'szablon_leki.csv';
+    a.click();
+});
+</script>
+{% endblock %}

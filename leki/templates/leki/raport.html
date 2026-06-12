@@ -1,0 +1,186 @@
+{% extends 'leki/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-pie me-2"></i>Raport miesięczny</h1>
+    <a href="{% url 'raport_csv' %}?rok={{ rok }}&miesiac={{ miesiac }}"
+       class="btn btn-outline-secondary">
+        <i class="fas fa-download me-1"></i>Pobierz CSV
+    </a>
+</div>
+
+{# Wybór miesiąca #}
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            {% for field in form %}
+            <div class="col-auto">
+                <label class="form-label fw-bold small">{{ field.label }}</label>
+                {{ field }}
+            </div>
+            {% endfor %}
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i>Pokaż raport
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<h4 class="text-muted mb-3">
+    <i class="fas fa-calendar me-2"></i>{{ nazwa_miesiaca }} {{ rok }}
+</h4>
+
+{% if total == 0 %}
+<div class="alert alert-info">Brak danych dla wybranego okresu.</div>
+{% else %}
+
+{# Karty podsumowania #}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-success" id="licznik-zazyte" data-target="{{ zazyte }}">0</div>
+                <div class="text-muted small">Dawek zażytych</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-warning" id="licznik-niezazyte" data-target="{{ niezazyte }}">0</div>
+                <div class="text-muted small">Dawek opuszczonych</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="fs-1 fw-bold" style="color:#2c7a4b;" id="licznik-procent" data-target="{{ procent_przyjec }}">0</div>
+                <div class="text-muted small">% skuteczności</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-primary">{{ koszt_total|floatformat:2 }} zł</div>
+                <div class="text-muted small">Łączny koszt leków</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── WYKRES MATPLOTLIB PNG ─────────────────────────────────────────────────── #}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Wykres przyjęć (dynamiczna grafika)</h5>
+    </div>
+    <div class="card-body text-center" id="kontener-wykresu">
+        <div id="ladowanie-wykresu" class="text-muted py-3">
+            <i class="fas fa-spinner fa-spin me-2"></i>Generowanie wykresu...
+        </div>
+        <img id="wykres-img"
+             src="{% url 'wykres_przyjec_png' %}?rok={{ rok }}&miesiac={{ miesiac }}"
+             alt="Wykres przyjęć leków"
+             class="img-fluid rounded"
+             style="display:none; max-height:400px;"
+             onload="document.getElementById('ladowanie-wykresu').style.display='none'; this.style.display='';"
+             onerror="document.getElementById('ladowanie-wykresu').innerHTML='<i class=\'fas fa-exclamation-triangle\'></i> Błąd generowania wykresu';">
+    </div>
+</div>
+
+{# Per lek #}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-pills me-2"></i>Przyjęcia według leku</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Lek</th>
+                    <th class="text-center text-success">Zażyte</th>
+                    <th class="text-center text-warning">Opuszczone</th>
+                    <th class="text-end">Koszt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nazwa, dane in per_lek.items %}
+                <tr>
+                    <td><strong>{{ nazwa }}</strong></td>
+                    <td class="text-center"><span class="badge bg-success">{{ dane.zazyte }}</span></td>
+                    <td class="text-center"><span class="badge bg-warning text-dark">{{ dane.niezazyte }}</span></td>
+                    <td class="text-end">
+                        {% if dane.koszt %}{{ dane.koszt|floatformat:2 }} zł
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if interakcje_unikalne %}
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-warning bg-opacity-10">
+        <h5 class="mb-0 text-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>Zarejestrowane interakcje
+        </h5>
+    </div>
+    <div class="card-body">
+        <ul class="mb-0">
+            {% for a, b in interakcje_unikalne %}
+            <li><strong>{{ a }}</strong> ↔ <strong>{{ b }}</strong></li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+{% if z_notatkami %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-notes-medical me-2"></i>Notatki o samopoczuciu</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Data</th><th>Lek</th><th>Notatka</th></tr></thead>
+            <tbody>
+                {% for n in z_notatkami %}
+                <tr>
+                    <td class="small text-muted">{{ n.data_godzina|date:"d.m.Y H:i" }}</td>
+                    <td><strong>{{ n.lek__nazwa }}</strong></td>
+                    <td>{{ n.notatka_samopoczucia }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+
+<script>
+// ── Animowane liczniki ────────────────────────────────────────────────────────
+function animujLicznik(el, czas) {
+    const cel = parseFloat(el.dataset.target);
+    const krok = cel / (czas / 16);
+    let obecny = 0;
+    const timer = setInterval(() => {
+        obecny = Math.min(obecny + krok, cel);
+        el.textContent = Number.isInteger(cel) ? Math.round(obecny) : obecny.toFixed(1);
+        if (obecny >= cel) clearInterval(timer);
+    }, 16);
+}
+document.addEventListener('DOMContentLoaded', () => {
+    ['licznik-zazyte','licznik-niezazyte','licznik-procent'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) animujLicznik(el, 800);
+    });
+});
+</script>
+{% endblock %}

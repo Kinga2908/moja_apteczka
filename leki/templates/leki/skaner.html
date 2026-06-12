@@ -1,0 +1,93 @@
+{% extends 'leki/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-7">
+
+<div class="card">
+    <div class="card-header">
+        <h1 class="fs-4 mb-0"><i class="fas fa-barcode me-2"></i>Skaner kodów kreskowych</h1>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            Zeskanuj kod EAN z opakowania leku (lub wpisz go ręcznie),
+            aby szybko znaleźć lek w swojej apteczce.
+        </p>
+
+        {# Formularz skanowania #}
+        <form method="get" action="{% url 'skaner' %}" class="d-flex gap-2 mb-4">
+            <input
+                type="text"
+                name="kod"
+                id="pole-kodu"
+                value="{{ kod }}"
+                class="form-control form-control-lg font-monospace"
+                placeholder="Wpisz lub zeskanuj kod EAN..."
+                autofocus
+                autocomplete="off"
+            >
+            <button type="submit" class="btn btn-primary btn-lg px-4">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+
+
+        {# Wynik wyszukiwania #}
+        {% if kod %}
+            {% if lek %}
+            <div class="alert alert-success">
+                <h5><i class="fas fa-check-circle me-2"></i>Znaleziono lek!</h5>
+                <table class="table table-sm mb-0 mt-2">
+                    <tr><th>Nazwa</th><td><strong>{{ lek.nazwa }}</strong></td></tr>
+                    <tr><th>Substancja</th><td>{{ lek.substancja_aktywna }}</td></tr>
+                    <tr><th>Instrukcja</th><td>{{ lek.instrukcja }}</td></tr>
+                    {% if lek.cena %}
+                    <tr><th>Cena opakowania</th><td>{{ lek.cena }} zł</td></tr>
+                    {% endif %}
+                    {% if lek.cena_za_dawke %}
+                    <tr><th>Koszt dawki</th><td>{{ lek.cena_za_dawke|floatformat:2 }} zł</td></tr>
+                    {% endif %}
+                </table>
+                <div class="mt-3">
+                    <a href="{% url 'dodaj_przyjecie' %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus me-1"></i>Zarejestruj przyjęcie
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Kod <code>{{ kod }}</code> nie został znaleziony w Twojej apteczce.
+                <div class="mt-2">
+                    <a href="{% url 'dodaj_lek' %}?kod={{ kod }}" class="btn btn-warning btn-sm">
+                        <i class="fas fa-plus me-1"></i>Dodaj lek z tym kodem
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        {% endif %}
+
+    </div>
+</div>
+
+</div>
+</div>
+
+<script>
+// Auto-submit po wpisaniu typowego kodu EAN (8 lub 13 cyfr) przez skaner
+(function(){
+    const pole = document.getElementById('pole-kodu');
+    if (!pole) return;
+    pole.addEventListener('input', function(){
+        const v = this.value.trim();
+        // EAN-8, EAN-13, lub inne kody > 6 znaków – wyślij po 300ms ciszy
+        if (v.length >= 6) {
+            clearTimeout(this._timer);
+            this._timer = setTimeout(() => {
+                this.closest('form').submit();
+            }, 300);
+        }
+    });
+})();
+</script>
+{% endblock %}

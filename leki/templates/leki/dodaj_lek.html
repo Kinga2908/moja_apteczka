@@ -1,0 +1,140 @@
+{% extends 'leki/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-7">
+<div class="card">
+    <div class="card-header">
+        <h1 class="fs-4 mb-0"><i class="fas fa-plus-circle me-2"></i>{{ tytul }}</h1>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+
+            {# Podstawowe informacje #}
+            <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-1">
+                <i class="fas fa-info-circle me-1"></i>Informacje o leku
+            </h6>
+
+            {% for field in form %}
+                {% if field.name not in "cena,ilosc_w_opakowaniu,kod_kreskowy,interakcje" %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                    {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+
+            <hr>
+
+            {# Skaner i cena #}
+            <h6 class="text-muted text-uppercase small fw-bold mb-3">
+                <i class="fas fa-barcode me-1"></i>Kod kreskowy i cena
+            </h6>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">{{ form.kod_kreskowy.label }}</label>
+                <div class="input-group">
+                    {{ form.kod_kreskowy }}
+                    <button type="button" class="btn btn-outline-secondary" id="btn-skaner"
+                            title="Kliknij, a potem zeskanuj kod">
+                        <i class="fas fa-barcode"></i>
+                    </button>
+                </div>
+                <div class="form-text">
+                    Podłącz skaner USB/Bluetooth i zeskanuj opakowanie,
+                    lub wpisz kod ręcznie.
+                </div>
+                {% if form.kod_kreskowy.errors %}
+                <div class="text-danger small">{{ form.kod_kreskowy.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">{{ form.cena.label }}</label>
+                    <div class="input-group">
+                        {{ form.cena }}
+                        <span class="input-group-text">zł</span>
+                    </div>
+                    {% if form.cena.help_text %}
+                    <div class="form-text">{{ form.cena.help_text }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">{{ form.ilosc_w_opakowaniu.label }}</label>
+                    {{ form.ilosc_w_opakowaniu }}
+                    {% if form.ilosc_w_opakowaniu.help_text %}
+                    <div class="form-text">{{ form.ilosc_w_opakowaniu.help_text }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Podgląd kosztu dawki #}
+            <div id="koszt-dawki-info" class="alert alert-light border small mb-3" style="display:none;">
+                <i class="fas fa-calculator me-1"></i>
+                Koszt dawki: <strong id="koszt-dawki-wartosc">—</strong> zł
+            </div>
+
+            <hr>
+
+            {# Interakcje #}
+            <h6 class="text-muted text-uppercase small fw-bold mb-3">
+                <i class="fas fa-exclamation-triangle me-1"></i>Interakcje z innymi lekami
+            </h6>
+            <div class="mb-3">
+                {{ form.interakcje }}
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>Zapisz lek
+                </button>
+                <a href="{% url 'strona_glowna' %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i>Anuluj
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+</div>
+
+<script>
+// Podgląd kosztu dawki w czasie rzeczywistym
+(function(){
+    const poleCena = document.querySelector('[name="cena"]');
+    const poleIlosc = document.querySelector('[name="ilosc_w_opakowaniu"]');
+    const info = document.getElementById('koszt-dawki-info');
+    const wartosc = document.getElementById('koszt-dawki-wartosc');
+
+    function przelicz(){
+        const cena = parseFloat(poleCena.value.replace(',','.'));
+        const ilosc = parseInt(poleIlosc.value);
+        if (cena > 0 && ilosc > 0){
+            const koszt = (cena / ilosc).toFixed(4);
+            wartosc.textContent = koszt;
+            info.style.display = '';
+        } else {
+            info.style.display = 'none';
+        }
+    }
+
+    if (poleCena && poleIlosc){
+        poleCena.addEventListener('input', przelicz);
+        poleIlosc.addEventListener('input', przelicz);
+        przelicz();
+    }
+
+    // Fokus na pole kodu przy kliknięciu przycisku skanera
+    const btnSkaner = document.getElementById('btn-skaner');
+    if (btnSkaner){
+        btnSkaner.addEventListener('click', function(){
+            document.getElementById('id_kod_kreskowy').focus();
+        });
+    }
+})();
+</script>
+{% endblock %}
