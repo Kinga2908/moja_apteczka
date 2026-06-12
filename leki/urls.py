@@ -22,6 +22,7 @@ urlpatterns = [
     path('dodaj-przyjecie/', views.dodaj_przyjecie, name='dodaj_przyjecie'),
     path('edytuj-przyjecie/<int:pk>/', views.edytuj_przyjecie, name='edytuj_przyjecie'),
     path('zmien-status/<int:pk>/', views.zmien_status, name='zmien_status'),
+<<<<<<< HEAD
 
     # Przypomnienia
     path('przypomnienia/', views.harmonogram_lista, name='harmonogram_lista'),
@@ -38,3 +39,13 @@ urlpatterns = [
     # API dla powiadomień JS
     path('przypomnienia/api/', views.api_harmonogram, name='api_harmonogram'),
 ]
+=======
+    path('eksport/csv/', views.eksport_csv, name='eksport_csv'),
+    path('eksport/xlsx/', views.eksport_xlsx, name='eksport_xlsx'),
+    path('wykres.png', views.wykres_png, name='wykres_png'),
+    path('import-csv/', views.import_csv, name='import_csv'),
+    path('leki/', views.lista_lekow, name='lista_lekow'),
+    path('przyjecia/', views.lista_przyjec, name='lista_przyjec'),
+]
+
+>>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6

@@ -80,6 +80,7 @@ class RejestracjaForm(UserCreationForm):
         model = User
         fields = ['username', 'email', 'password1', 'password2']
 
+<<<<<<< HEAD
 
 class ImportCSVForm(forms.Form):
     plik_csv = forms.FileField(
@@ -176,3 +177,10 @@ class FiltrPrzyjeciaForm(forms.Form):
         super().__init__(*args, **kwargs)
         if user:
             self.fields['lek'].queryset = Lek.objects.filter(uzytkownik=user)
+=======
+class ImportCSVForm(forms.Form):
+    plik = forms.FileField(
+        label='Plik CSV',
+        help_text='Plik musi zawierać kolumny: nazwa, substancja_aktywna, instrukcja'
+    )
+>>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
