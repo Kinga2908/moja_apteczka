@@ -11,7 +11,6 @@
         <form method="post">
             {% csrf_token %}
 
-            {# Podstawowe informacje #}
             <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-1">
                 <i class="fas fa-info-circle me-1"></i>Informacje o leku
             </h6>
@@ -27,9 +26,17 @@
                 {% endif %}
             {% endfor %}
 
+            {# Ostrzeżenie o interakcjach – pojawia się dynamicznie #}
+            <div id="box-interakcji" style="display:none;" class="alert alert-warning mb-3">
+                <div class="fw-bold mb-1">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Znane interakcje dla tego leku:
+                </div>
+                <ul id="lista-interakcji" class="mb-0 small"></ul>
+            </div>
+
             <hr>
 
-            {# Skaner i cena #}
             <h6 class="text-muted text-uppercase small fw-bold mb-3">
                 <i class="fas fa-barcode me-1"></i>Kod kreskowy i cena
             </h6>
@@ -38,18 +45,11 @@
                 <label class="form-label fw-bold">{{ form.kod_kreskowy.label }}</label>
                 <div class="input-group">
                     {{ form.kod_kreskowy }}
-                    <button type="button" class="btn btn-outline-secondary" id="btn-skaner"
-                            title="Kliknij, a potem zeskanuj kod">
+                    <button type="button" class="btn btn-outline-secondary" id="btn-skaner">
                         <i class="fas fa-barcode"></i>
                     </button>
                 </div>
-                <div class="form-text">
-                    Podłącz skaner USB/Bluetooth i zeskanuj opakowanie,
-                    lub wpisz kod ręcznie.
-                </div>
-                {% if form.kod_kreskowy.errors %}
-                <div class="text-danger small">{{ form.kod_kreskowy.errors }}</div>
-                {% endif %}
+                <div class="form-text">Podłącz skaner USB/Bluetooth lub wpisz kod ręcznie.</div>
             </div>
 
             <div class="row">
@@ -59,20 +59,13 @@
                         {{ form.cena }}
                         <span class="input-group-text">zł</span>
                     </div>
-                    {% if form.cena.help_text %}
-                    <div class="form-text">{{ form.cena.help_text }}</div>
-                    {% endif %}
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label fw-bold">{{ form.ilosc_w_opakowaniu.label }}</label>
                     {{ form.ilosc_w_opakowaniu }}
-                    {% if form.ilosc_w_opakowaniu.help_text %}
-                    <div class="form-text">{{ form.ilosc_w_opakowaniu.help_text }}</div>
-                    {% endif %}
                 </div>
             </div>
 
-            {# Podgląd kosztu dawki #}
             <div id="koszt-dawki-info" class="alert alert-light border small mb-3" style="display:none;">
                 <i class="fas fa-calculator me-1"></i>
                 Koszt dawki: <strong id="koszt-dawki-wartosc">—</strong> zł
@@ -80,19 +73,16 @@
 
             <hr>
 
-            {# Interakcje #}
             <h6 class="text-muted text-uppercase small fw-bold mb-3">
                 <i class="fas fa-exclamation-triangle me-1"></i>Interakcje z innymi lekami
             </h6>
-            <div class="mb-3">
-                {{ form.interakcje }}
-            </div>
+            <div class="mb-3">{{ form.interakcje }}</div>
 
             <div class="d-flex gap-2 mt-3">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save me-1"></i>Zapisz lek
                 </button>
-                <a href="{% url 'strona_glowna' %}" class="btn btn-secondary">
+                <a href="{% url 'lista_lekow' %}" class="btn btn-secondary">
                     <i class="fas fa-times me-1"></i>Anuluj
                 </a>
             </div>
@@ -103,38 +93,248 @@
 </div>
 
 <script>
-// Podgląd kosztu dawki w czasie rzeczywistym
+// ════════════════════════════════════════════════════════════════════════════
+// BAZA ZNANYCH INTERAKCJI LEKÓW
+// Klucze to fragmenty nazw (małe litery), wartości to lista ostrzeżeń
+// ════════════════════════════════════════════════════════════════════════════
+const INTERAKCJE_BAZA = {
+    'ibuprofen': [
+        '⚠️ Aspiryna / kwas acetylosalicylowy — zwiększone ryzyko krwawienia z przewodu pokarmowego',
+        '⚠️ Warfaryna / acenokumarol — nasila działanie przeciwzakrzepowe, ryzyko krwawień',
+        '⚠️ Metformina — może zmniejszać skuteczność w cukrzycy i uszkadzać nerki',
+        '⚠️ Leki na nadciśnienie (np. ramipril, lizynopryl) — osłabia ich działanie',
+        '⚠️ Kortykosteroidy (np. prednizon) — zwiększone ryzyko wrzodów żołądka',
+        '⚠️ Lit — może zwiększać stężenie litu we krwi do toksycznego poziomu',
+    ],
+    'aspiryna': [
+        '⚠️ Ibuprofen / naproksen — wzajemnie osłabiają działanie, ryzyko krwawień',
+        '⚠️ Warfaryna / acenokumarol — bardzo wysokie ryzyko krwawień',
+        '⚠️ Metotreksat — zwiększa jego toksyczność',
+        '⚠️ Leki na cukrzycę (insulina, metformina) — może nasilać obniżanie cukru',
+        '⚠️ Alkohol — zwiększa ryzyko krwawienia z żołądka',
+    ],
+    'paracetamol': [
+        '⚠️ Alkohol — bardzo wysokie ryzyko uszkodzenia wątroby nawet przy małych dawkach',
+        '⚠️ Warfaryna — regularne stosowanie nasila działanie przeciwzakrzepowe',
+        '⚠️ Karbamazepina / fenytoina — przyspieszają rozkład paracetamolu, może być nieskuteczny',
+        '⚠️ Inne leki z paracetamolem (np. Theraflu, Fervex) — ryzyko przedawkowania',
+    ],
+    'warfaryna': [
+        '⚠️ Aspiryna / ibuprofen / naproksen — wysokie ryzyko krwawień',
+        '⚠️ Antybiotyki (np. amoksycylina, ciprofloksacyna) — zmieniają działanie warfaryny',
+        '⚠️ Omeprazol / pantoprazol — mogą zwiększać stężenie warfaryny',
+        '⚠️ Witamina K (np. w suplementach) — osłabia działanie warfaryny',
+        '⚠️ Sok grejpfrutowy — zmienia wchłanianie wielu leków przeciwzakrzepowych',
+    ],
+    'metformina': [
+        '⚠️ Alkohol — ryzyko kwasicy mleczanowej (groźne powikłanie)',
+        '⚠️ Ibuprofen / naproksen — mogą uszkadzać nerki i zmniejszać wydalanie metforminy',
+        '⚠️ Środki kontrastowe do tomografii — należy odstawić metforminę przed badaniem',
+        '⚠️ Kortykosteroidy (np. prednizon) — podnoszą cukier, zmniejszają skuteczność',
+    ],
+    'ramipril': [
+        '⚠️ Ibuprofen / naproksen — osłabia działanie na ciśnienie, ryzyko uszkodzenia nerek',
+        '⚠️ Potas / suplementy potasu — ryzyko niebezpiecznego wzrostu potasu we krwi',
+        '⚠️ Leki moczopędne (np. furosemid) — może powodować gwałtowny spadek ciśnienia',
+        '⚠️ Lit — zwiększa stężenie litu do toksycznego poziomu',
+    ],
+    'lizynopryl': [
+        '⚠️ Ibuprofen / naproksen — osłabia działanie hipotensyjne',
+        '⚠️ Potas — ryzyko hiperkaliemii',
+        '⚠️ Leki moczopędne — ryzyko niedociśnienia',
+    ],
+    'amlodypina': [
+        '⚠️ Sok grejpfrutowy — zwiększa stężenie leku we krwi, ryzyko nadmiernego spadku ciśnienia',
+        '⚠️ Symwastatyna — amlodypina zwiększa stężenie statyny, ryzyko uszkodzenia mięśni',
+        '⚠️ Cyklosporyna — wzajemne nasilanie działania',
+    ],
+    'atorwastatyna': [
+        '⚠️ Sok grejpfrutowy — znacząco zwiększa stężenie statyny, ryzyko uszkodzenia mięśni',
+        '⚠️ Amlodypina / werapamil — zwiększają stężenie atorwastatyny',
+        '⚠️ Antybiotyki makrolidowe (klarytromycyna, erytromycyna) — ryzyko miopatii',
+        '⚠️ Kwas fusydowy — wysokie ryzyko uszkodzenia mięśni (rabdomioliza)',
+    ],
+    'simwastatyna': [
+        '⚠️ Sok grejpfrutowy — bardzo wysokie ryzyko uszkodzenia mięśni',
+        '⚠️ Amlodypina — zwiększa stężenie simwastatyny (limit dawki 20mg)',
+        '⚠️ Antybiotyki makrolidowe — ryzyko miopatii',
+        '⚠️ Diltiazem / werapamil — zwiększają stężenie statyny',
+    ],
+    'omeprazol': [
+        '⚠️ Klopidogrel — omeprazol znacząco osłabia działanie klopidogrelu',
+        '⚠️ Metotreksat — może zwiększać toksyczność',
+        '⚠️ Warfaryna — może nasilać działanie przeciwzakrzepowe',
+        '⚠️ Ketokonazol / itrakonazol — omeprazol zmniejsza ich wchłanianie',
+    ],
+    'pantoprazol': [
+        '⚠️ Klopidogrel — podobnie jak omeprazol, może osłabiać działanie (mniej niż omeprazol)',
+        '⚠️ Metotreksat — może zwiększać stężenie metotreksatu',
+    ],
+    'metoprolol': [
+        '⚠️ Werapamil / diltiazem — ryzyko niebezpiecznego zwolnienia akcji serca',
+        '⚠️ Insulina / leki na cukrzycę — maskuje objawy hipoglikemii',
+        '⚠️ Klonidyna — nagłe odstawienie klonidyny przy beta-blokadzie grozi kryzą nadciśnieniową',
+        '⚠️ Leki przeciwdepresyjne (SSRI, np. fluoksetyna) — zwiększają stężenie metoprololu',
+    ],
+    'bisoprolol': [
+        '⚠️ Werapamil / diltiazem — ryzyko bradykardii i bloku serca',
+        '⚠️ Insulina — maskuje objawy niedocukrzenia',
+        '⚠️ Leki antyarytmiczne (amiodaron) — nasilają bradykardię',
+    ],
+    'fluoksetyna': [
+        '⚠️ MAO inhibitory (np. moklobemid) — bardzo niebezpieczne, ryzyko zespołu serotoninowego',
+        '⚠️ Tramadol — ryzyko zespołu serotoninowego i drgawek',
+        '⚠️ Lit — ryzyko toksyczności serotonergicznej',
+        '⚠️ Warfaryna — może nasilać działanie przeciwzakrzepowe',
+        '⚠️ Metoprolol — zwiększa stężenie metoprololu we krwi',
+    ],
+    'sertralina': [
+        '⚠️ MAO inhibitory — bardzo niebezpieczne, nie łączyć',
+        '⚠️ Tramadol — ryzyko zespołu serotoninowego',
+        '⚠️ Aspiryna / ibuprofen — zwiększone ryzyko krwawień (SSRI + NLPZ)',
+        '⚠️ Warfaryna — może nasilać działanie przeciwzakrzepowe',
+    ],
+    'amoksycylina': [
+        '⚠️ Warfaryna — może nasilać działanie, konieczna kontrola INR',
+        '⚠️ Metotreksat — zwiększa toksyczność metotreksatu',
+        '⚠️ Doustne środki antykoncepcyjne — może zmniejszać ich skuteczność',
+        '⚠️ Alopurynol — zwiększa ryzyko wysypki skórnej',
+    ],
+    'ciprofloksacyna': [
+        '⚠️ Warfaryna — znacząco nasila działanie przeciwzakrzepowe',
+        '⚠️ Teofilina — zwiększa stężenie teofiliny do toksycznego poziomu',
+        '⚠️ Leki zobojętniające (np. Maalox, Rennie) — zmniejszają wchłanianie cipro o 90%',
+        '⚠️ Preparaty żelaza / wapnia / magnezu — przyjmować 2h przed lub 6h po cipro',
+        '⚠️ Metformin — może zwiększać stężenie metforminy',
+    ],
+    'tramadol': [
+        '⚠️ Leki przeciwdepresyjne (SSRI, SNRI) — wysokie ryzyko zespołu serotoninowego',
+        '⚠️ MAO inhibitory — bezwzględnie przeciwwskazane',
+        '⚠️ Benzodiazepiny (np. diazepam) — nasilają depresję oddechową',
+        '⚠️ Alkohol — nasila działanie depresyjne na OUN',
+        '⚠️ Karbamazepina — zmniejsza skuteczność tramadolu',
+    ],
+    'diazepam': [
+        '⚠️ Alkohol — bardzo niebezpieczne nasilenie sedacji i depresji oddechowej',
+        '⚠️ Opiaty (tramadol, morfina, kodeina) — ryzyko zatrzymania oddechu',
+        '⚠️ Inne benzodiazepiny — kumulacja działania',
+        '⚠️ Leki antyhistaminowe (np. hydroxyzyna) — nasilenie sedacji',
+    ],
+    'prednizon': [
+        '⚠️ Ibuprofen / aspiryna — wysokie ryzyko wrzodów i krwawień żołądka',
+        '⚠️ Metformina / insulina — podnosi poziom cukru we krwi',
+        '⚠️ Szczepionki żywe — kortykosteroidy osłabiają odporność',
+        '⚠️ Warfaryna — zmienia działanie przeciwzakrzepowe',
+        '⚠️ Leki moczopędne — ryzyko niedoboru potasu',
+    ],
+    'lewotyroksyna': [
+        '⚠️ Preparaty wapnia / żelaza / magnezu — zmniejszają wchłanianie, przyjmować 4h osobno',
+        '⚠️ Leki zobojętniające kwas — zmniejszają wchłanianie lewotyroksyny',
+        '⚠️ Warfaryna — może nasilać działanie przeciwzakrzepowe',
+        '⚠️ Metformina — może zmniejszać skuteczność lewotyroksyny',
+    ],
+    'acard': [
+        '⚠️ Ibuprofen / naproksen — wzajemnie osłabiają działanie kardioprotekcyjne Acardu',
+        '⚠️ Warfaryna — bardzo wysokie ryzyko krwawień',
+        '⚠️ Leki na cukrzycę — może nasilać obniżanie cukru',
+        '⚠️ Alkohol — zwiększa ryzyko krwawienia z żołądka',
+    ],
+    'naproksen': [
+        '⚠️ Aspiryna / ibuprofen — kumulacja działań niepożądanych, ryzyko krwawień',
+        '⚠️ Warfaryna — nasila działanie przeciwzakrzepowe',
+        '⚠️ Leki na nadciśnienie — osłabia ich działanie',
+        '⚠️ Lit — zwiększa stężenie litu',
+    ],
+    'klopidogrel': [
+        '⚠️ Omeprazol / esomeprazol — znacząco osłabia działanie klopidogrelu (używać pantoprazolu)',
+        '⚠️ Aspiryna — zwiększone ryzyko krwawień (choć często stosowane razem pod kontrolą lekarza)',
+        '⚠️ Ibuprofen — ryzyko krwawień',
+    ],
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Logika sprawdzania podczas wpisywania
+// ════════════════════════════════════════════════════════════════════════════
+const poleNazwy = document.querySelector('[name="nazwa"]');
+const boxInterakcji = document.getElementById('box-interakcji');
+const listaInterakcji = document.getElementById('lista-interakcji');
+
+function sprawdzInterakcje(nazwa) {
+    const nazwaLower = nazwa.toLowerCase().trim();
+    if (!nazwaLower || nazwaLower.length < 3) {
+        boxInterakcji.style.display = 'none';
+        return;
+    }
+
+    // Szukaj dopasowania w bazie (sprawdza czy wpisana nazwa zawiera klucz lub klucz zawiera nazwę)
+    let znalezioneInterakcje = [];
+    let dopasowanyLek = null;
+
+    for (const [lek, interakcje] of Object.entries(INTERAKCJE_BAZA)) {
+        if (nazwaLower.includes(lek) || lek.includes(nazwaLower)) {
+            znalezioneInterakcje = interakcje;
+            dopasowanyLek = lek;
+            break;
+        }
+    }
+
+    if (znalezioneInterakcje.length > 0) {
+        listaInterakcji.innerHTML = '';
+        znalezioneInterakcje.forEach(inter => {
+            const li = document.createElement('li');
+            li.textContent = inter;
+            li.style.marginBottom = '3px';
+            listaInterakcji.appendChild(li);
+        });
+        boxInterakcji.style.display = '';
+        // Animacja pojawienia się
+        boxInterakcji.style.animation = 'none';
+        boxInterakcji.offsetHeight; // reflow
+        boxInterakcji.style.animation = 'fadeInDown 0.3s ease';
+    } else {
+        boxInterakcji.style.display = 'none';
+    }
+}
+
+if (poleNazwy) {
+    // Sprawdź przy wpisywaniu
+    poleNazwy.addEventListener('input', () => sprawdzInterakcje(poleNazwy.value));
+    // Sprawdź przy wejściu na stronę (jeśli edytujemy istniejący lek)
+    if (poleNazwy.value) sprawdzInterakcje(poleNazwy.value);
+}
+
+// Kalkulator kosztu dawki
 (function(){
     const poleCena = document.querySelector('[name="cena"]');
     const poleIlosc = document.querySelector('[name="ilosc_w_opakowaniu"]');
     const info = document.getElementById('koszt-dawki-info');
     const wartosc = document.getElementById('koszt-dawki-wartosc');
-
     function przelicz(){
         const cena = parseFloat(poleCena.value.replace(',','.'));
         const ilosc = parseInt(poleIlosc.value);
         if (cena > 0 && ilosc > 0){
-            const koszt = (cena / ilosc).toFixed(4);
-            wartosc.textContent = koszt;
+            wartosc.textContent = (cena / ilosc).toFixed(4);
             info.style.display = '';
         } else {
             info.style.display = 'none';
         }
     }
-
     if (poleCena && poleIlosc){
         poleCena.addEventListener('input', przelicz);
         poleIlosc.addEventListener('input', przelicz);
         przelicz();
     }
-
-    // Fokus na pole kodu przy kliknięciu przycisku skanera
     const btnSkaner = document.getElementById('btn-skaner');
     if (btnSkaner){
-        btnSkaner.addEventListener('click', function(){
-            document.getElementById('id_kod_kreskowy').focus();
-        });
+        btnSkaner.addEventListener('click', () => document.getElementById('id_kod_kreskowy').focus());
     }
 })();
 </script>
+
+<style>
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+</style>
 {% endblock %}

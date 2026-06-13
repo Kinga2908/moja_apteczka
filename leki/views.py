@@ -1,6 +1,7 @@
 import csv
 import io
 import base64
+import json
 from decimal import Decimal, InvalidOperation
 from datetime import date, timedelta
 from calendar import monthrange
@@ -15,25 +16,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
-<<<<<<< HEAD
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
-=======
-from .forms import LekForm, PrzyjęcieForm, UserProfileForm, RejestracjaForm
-from .models import Lek, PrzyjecieLeku, UserProfile
-import csv
-import io
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from django.http import HttpResponse
-from django.utils import timezone
-from datetime import timedelta
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
 
 from .forms import (
     LekForm, PrzyjęcieForm, UserProfileForm, RejestracjaForm,
@@ -115,7 +101,6 @@ def strona_glowna(request):
 
 @login_required
 def lista_lekow(request):
-    """Lista leków z filtrowaniem (nazwa, substancja, cena min/max) i stronicowaniem."""
     qs = Lek.objects.filter(uzytkownik=request.user)
 
     form = FiltrLekiForm(request.GET or None)
@@ -125,7 +110,6 @@ def lista_lekow(request):
         cena_min = form.cleaned_data.get('cena_min')
         cena_max = form.cleaned_data.get('cena_max')
         kod = form.cleaned_data.get('kod_kreskowy')
-
         if nazwa:
             qs = qs.filter(nazwa__icontains=nazwa)
         if substancja:
@@ -137,7 +121,6 @@ def lista_lekow(request):
         if kod:
             qs = qs.filter(kod_kreskowy__icontains=kod)
 
-    # Stronicowanie
     wyniki_na_stronie = request.GET.get('na_stronie', '10')
     try:
         wyniki_na_stronie = int(wyniki_na_stronie)
@@ -153,7 +136,6 @@ def lista_lekow(request):
     except Exception:
         leki_strona = paginator.page(1)
 
-    # Zachowaj parametry GET bez 'strona' do linków paginacji
     get_params = request.GET.copy()
     get_params.pop('strona', None)
 
@@ -173,7 +155,6 @@ def lista_lekow(request):
 
 @login_required
 def lista_przyjec(request):
-    """Lista przyjęć z filtrowaniem (lek, status, data od/do) i stronicowaniem."""
     qs = PrzyjecieLeku.objects.filter(uzytkownik=request.user).select_related('lek')
 
     form = FiltrPrzyjeciaForm(request.GET or None, user=request.user)
@@ -183,7 +164,6 @@ def lista_przyjec(request):
         data_od = form.cleaned_data.get('data_od')
         data_do = form.cleaned_data.get('data_do')
         notatka = form.cleaned_data.get('notatka')
-
         if lek:
             qs = qs.filter(lek=lek)
         if status:
@@ -269,12 +249,64 @@ def dodaj_przyjecie(request):
         if form.is_valid():
             przyjecie = form.save(commit=False)
             przyjecie.uzytkownik = request.user
-            przyjecie.save()
-            return redirect('lista_przyjec')
+
+            from django.utils import timezone as tz
+            ODSTEPY = {
+                ('metformin', 'lewotyroksyna'): 2,
+                ('lewotyroksyna', 'metformin'): 2,
+                ('żelazo', 'magnez'): 2,
+                ('magnez', 'żelazo'): 2,
+                ('żelazo', 'wapń'): 2,
+                ('wapń', 'żelazo'): 2,
+                ('żelazo', 'lewotyroksyna'): 4,
+                ('lewotyroksyna', 'żelazo'): 4,
+                ('żelazo', 'ciprofloksacyna'): 6,
+                ('ciprofloksacyna', 'żelazo'): 6,
+            }
+
+            nazwa_nowego = przyjecie.lek.nazwa.lower()
+            blokada = None
+            teraz = tz.now()
+
+            for (lekA, lekB), godziny in ODSTEPY.items():
+                if lekA in nazwa_nowego:
+                    od_kiedy = teraz - timedelta(hours=godziny)
+                    kolizja = PrzyjecieLeku.objects.filter(
+                        uzytkownik=request.user,
+                        status='zazyte',
+                        data_godzina__gte=od_kiedy,
+                        lek__nazwa__icontains=lekB,
+                    ).first()
+                    if kolizja:
+                        blokada = (
+                            f'Nie możesz teraz przyjąć {przyjecie.lek.nazwa} — '
+                            f'wymagany odstęp {godziny}h od {kolizja.lek.nazwa} '
+                            f'(przyjęto: {kolizja.data_godzina.strftime("%H:%M")} UTC, czyli {(kolizja.data_godzina + timedelta(hours=2)).strftime("%H:%M")} czasu polskiego). '
+                            f'Poczekaj do {(kolizja.data_godzina + timedelta(hours=godziny + 2)).strftime("%H:%M")} czasu polskiego.'
+                        )
+                        break
+
+            if blokada:
+                messages.error(request, blokada)
+            else:
+                przyjecie.save()
+                return redirect('lista_przyjec')
     else:
         form = PrzyjęcieForm(user=request.user)
-    return render(request, 'leki/formularz.html', {
-        'form': form, 'tytul': 'Zarejestruj przyjęcie leku'
+
+    dzis = date.today()
+    leki_dzisiaj_json = json.dumps([
+        n.lower() for n in PrzyjecieLeku.objects.filter(
+            uzytkownik=request.user,
+            status="zazyte",
+            data_godzina__date=dzis,
+        ).values_list("lek__nazwa", flat=True)
+    ])
+
+    return render(request, "leki/formularz_przyjecie.html", {
+        "form": form,
+        "tytul": "Zarejestruj przyjęcie leku",
+        "leki_dzisiaj_json": leki_dzisiaj_json,
     })
 
 
@@ -296,8 +328,15 @@ def zmien_status(request, pk):
     przyjecie = get_object_or_404(PrzyjecieLeku, pk=pk, uzytkownik=request.user)
     przyjecie.status = 'niezazyte' if przyjecie.status == 'zazyte' else 'zazyte'
     przyjecie.save()
-    # Wróć do poprzedniej strony
     return redirect(request.META.get('HTTP_REFERER', 'lista_przyjec'))
+
+
+@login_required
+def usun_przyjecie(request, pk):
+    przyjecie = get_object_or_404(PrzyjecieLeku, pk=pk, uzytkownik=request.user)
+    przyjecie.delete()
+    messages.success(request, 'Przyjęcie zostało usunięte.')
+    return redirect('lista_przyjec')
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -390,11 +429,85 @@ def import_csv(request):
 
 @login_required
 def harmonogram_lista(request):
+    """
+    Pokazuje harmonogram przypomnień + listę leków do zażycia dziś.
+    Lek jest "do zażycia" jeśli:
+    - ma harmonogram na dziś
+    - NIE ma jeszcze przyjęcia ze statusem 'zazyte' z dzisiaj
+    """
+    from django.utils import timezone as tz
+    import json
+
     harmonogramy = HarmonogramPrzypomnienia.objects.filter(
         uzytkownik=request.user
-    ).select_related('lek')
-    return render(request, 'leki/harmonogram_lista.html', {'harmonogramy': harmonogramy})
+    ).select_related('lek').order_by('godzina')
 
+    dzis = date.today()
+    teraz = tz.now()
+
+    # Sprawdź które leki zostały już dziś zażyte
+    juz_zazyte_ids = set(
+        PrzyjecieLeku.objects.filter(
+            uzytkownik=request.user,
+            status='zazyte',
+            data_godzina__date=dzis,
+        ).values_list('lek_id', flat=True)
+    )
+
+    # Podziel harmonogramy na: do zażycia i zażyte
+    do_zazycja = []
+    juz_zazyto = []
+
+    for h in harmonogramy:
+        if h.lek.pk in juz_zazyte_ids:
+            juz_zazyto.append(h)
+        else:
+            do_zazycja.append(h)
+
+    return render(request, 'leki/harmonogram_lista.html', {
+        'harmonogramy': harmonogramy,
+        'do_zazycja': do_zazycja,
+        'juz_zazyto': juz_zazyto,
+        'teraz': teraz,
+    })
+
+@login_required
+def potwierdz_przyjecie(request, harmonogram_pk):
+    """
+    Widok otwierany po kliknięciu powiadomienia.
+    Pokazuje formularz z predefiniowaną godziną i lekiem.
+    Po zatwierdzeniu zapisuje przyjęcie.
+    """
+    from django.utils import timezone as tz
+    harmonogram = get_object_or_404(
+        HarmonogramPrzypomnienia, pk=harmonogram_pk, uzytkownik=request.user
+    )
+
+    if request.method == 'POST':
+        form = PrzyjęcieForm(request.POST, user=request.user)
+        if form.is_valid():
+            przyjecie = form.save(commit=False)
+            przyjecie.uzytkownik = request.user
+            przyjecie.save()
+            messages.success(request, f'Zażycie leku „{harmonogram.lek.nazwa}" zostało zapisane.')
+            return redirect('harmonogram_lista')
+    else:
+        # Prefill formularza: lek z harmonogramu, aktualna godzina, status zażyte
+        teraz = tz.now()
+        form = PrzyjęcieForm(
+            user=request.user,
+            initial={
+                'lek': harmonogram.lek,
+                'data_godzina': teraz.strftime('%Y-%m-%dT%H:%M'),
+                'status': 'zazyte',
+            }
+        )
+
+    return render(request, 'leki/potwierdz_przyjecie.html', {
+        'form': form,
+        'harmonogram': harmonogram,
+        'tytul': f'Potwierdź zażycie: {harmonogram.lek.nazwa}',
+    })
 
 @login_required
 def dodaj_harmonogram(request):
@@ -407,7 +520,6 @@ def dodaj_harmonogram(request):
             messages.success(request, 'Przypomnienie zostało dodane.')
             return redirect('harmonogram_lista')
     else:
-<<<<<<< HEAD
         form = HarmonogramForm(user=request.user)
     return render(request, 'leki/formularz.html', {
         'form': form, 'tytul': 'Dodaj przypomnienie o leku'
@@ -518,15 +630,11 @@ def eksport_raportu_csv(request):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  WYKRES MATPLOTLIB – widok serwujący PNG
+#  WYKRES MATPLOTLIB
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @login_required
 def wykres_przyjec_png(request):
-    """
-    Zwraca dynamiczny wykres słupkowy przyjęć z ostatnich 30 dni jako obraz PNG.
-    To jest dedykowany widok serwujący grafikę — spełnia wymóg 'dynamiczna grafika'.
-    """
     dzis = date.today()
     rok = int(request.GET.get('rok', dzis.year))
     miesiac = int(request.GET.get('miesiac', dzis.month))
@@ -539,13 +647,11 @@ def wykres_przyjec_png(request):
         data_godzina__date__lte=ostatni_dzien,
     ).select_related('lek')
 
-    # Zbierz dane per lek
     per_lek = defaultdict(lambda: {'zazyte': 0, 'niezazyte': 0})
     for p in przyjecia_qs:
         per_lek[p.lek.nazwa][p.status] += 1
 
     if not per_lek:
-        # Pusty wykres z komunikatem
         fig, ax = plt.subplots(figsize=(8, 4))
         ax.text(0.5, 0.5, 'Brak danych dla wybranego okresu',
                 ha='center', va='center', fontsize=14, color='gray',
@@ -555,17 +661,13 @@ def wykres_przyjec_png(request):
         nazwy = list(per_lek.keys())
         zazyte_vals = [per_lek[n]['zazyte'] for n in nazwy]
         niezazyte_vals = [per_lek[n]['niezazyte'] for n in nazwy]
-
         x = range(len(nazwy))
         fig, ax = plt.subplots(figsize=(max(8, len(nazwy) * 1.5), 5))
         szerokosc = 0.35
-
         slupki1 = ax.bar([i - szerokosc/2 for i in x], zazyte_vals,
                          szerokosc, label='Zażyte', color='#2c7a4b', alpha=0.85)
         slupki2 = ax.bar([i + szerokosc/2 for i in x], niezazyte_vals,
                          szerokosc, label='Niezażyte', color='#e0a800', alpha=0.85)
-
-        # Wartości nad słupkami
         for slupek in slupki1:
             h = slupek.get_height()
             if h > 0:
@@ -580,11 +682,9 @@ def wykres_przyjec_png(request):
                     xy=(slupek.get_x() + slupek.get_width() / 2, h),
                     xytext=(0, 3), textcoords='offset points',
                     ha='center', va='bottom', fontsize=9)
-
         miesiac_nazwa = {1:'Styczeń',2:'Luty',3:'Marzec',4:'Kwiecień',5:'Maj',
                          6:'Czerwiec',7:'Lipiec',8:'Sierpień',9:'Wrzesień',
                          10:'Październik',11:'Listopad',12:'Grudzień'}
-
         ax.set_title(f'Przyjęcia leków – {miesiac_nazwa.get(miesiac,"")} {rok}',
                      fontsize=14, fontweight='bold', color='#2c7a4b', pad=15)
         ax.set_xticks(list(x))
@@ -607,261 +707,50 @@ def wykres_przyjec_png(request):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  API – harmonogram dla powiadomień JS
+#  API – harmonogram
 # ═══════════════════════════════════════════════════════════════════════════════
-
-from django.http import JsonResponse
 
 @login_required
 def api_harmonogram(request):
-    """Zwraca harmonogram przypomnień jako JSON dla powiadomień na stronie."""
+    """Zwraca harmonogram z linkami do potwierdzenia przyjęcia."""
+    from django.urls import reverse
+    dzis = date.today()
+
+    # Leki już zażyte dziś
+    juz_zazyte_ids = set(
+        PrzyjecieLeku.objects.filter(
+            uzytkownik=request.user,
+            status='zazyte',
+            data_godzina__date=dzis,
+        ).values_list('lek_id', flat=True)
+    )
+
     harmonogramy = HarmonogramPrzypomnienia.objects.filter(
         uzytkownik=request.user,
-        aktywne=True
     ).select_related('lek')
 
-    dane = [
-        {
-            'id': h.pk,
-            'lek_nazwa': h.lek.nazwa,
-            'godzina': h.godzina.strftime('%H:%M'),
-        }
-        for h in harmonogramy
-    ]
+    dane = []
+    for h in harmonogramy:
+        if h.lek.pk not in juz_zazyte_ids:
+            dane.append({
+                'id': h.pk,
+                'lek_nazwa': h.lek.nazwa,
+                'godzina': h.godzina.strftime('%H:%M'),
+                'url': reverse('potwierdz_przyjecie', args=[h.pk]),
+            })
+
     return JsonResponse({'harmonogramy': dane})
-=======
-        przyjecie.status = 'zazyte'
-    przyjecie.save()
-    return redirect('strona_glowna')
 
-
-@login_required
-def eksport_csv(request):
-    response = HttpResponse(content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = 'attachment; filename="apteczka.csv"'
-    response.write('\ufeff')  # BOM dla Excela
-
-    writer = csv.writer(response)
-    writer.writerow(['Lek', 'Substancja aktywna', 'Data przyjęcia', 'Status', 'Samopoczucie'])
-
-    przyjecia = PrzyjecieLeku.objects.filter(uzytkownik=request.user).select_related('lek')
-    for p in przyjecia:
-        writer.writerow([
-            p.lek.nazwa,
-            p.lek.substancja_aktywna,
-            p.data_godzina.strftime('%Y-%m-%d %H:%M'),
-            p.get_status_display(),
-            p.notatka_samopoczucia,
-        ])
-
-    return response
-
+# ═══════════════════════════════════════════════════════════════════════════════
+#  USUWANIE LEKU
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @login_required
-def eksport_xlsx(request):
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Apteczka"
-
-    # Nagłówki
-    naglowki = ['Lek', 'Substancja aktywna', 'Data przyjęcia', 'Status', 'Samopoczucie']
-    ws.append(naglowki)
-
-    # Styl nagłówków
-    green_fill = PatternFill(start_color='2C7A4B', end_color='2C7A4B', fill_type='solid')
-    for cell in ws[1]:
-        cell.font = Font(bold=True, color='FFFFFF')
-        cell.fill = green_fill
-        cell.alignment = Alignment(horizontal='center')
-
-    # Dane
-    przyjecia = PrzyjecieLeku.objects.filter(uzytkownik=request.user).select_related('lek')
-    for p in przyjecia:
-        ws.append([
-            p.lek.nazwa,
-            p.lek.substancja_aktywna,
-            p.data_godzina.strftime('%Y-%m-%d %H:%M'),
-            p.get_status_display(),
-            p.notatka_samopoczucia,
-        ])
-
-    # Szerokości kolumn
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
-
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    response['Content-Disposition'] = 'attachment; filename="apteczka.xlsx"'
-    wb.save(response)
-    return response
-
-
-@login_required
-def wykres_png(request):
-    """Serwuje dynamiczny wykres przyjęć z ostatnich 14 dni jako plik PNG."""
-    przyjecia = PrzyjecieLeku.objects.filter(uzytkownik=request.user)
-
-    today = timezone.now().date()
-    dni = [(today - timedelta(days=i)) for i in range(13, -1, -1)]
-    counts = {d: 0 for d in dni}
-    for p in przyjecia:
-        d = p.data_godzina.date()
-        if d in counts:
-            counts[d] += 1
-
-    labels = [d.strftime('%d.%m') for d in dni]
-    values = [counts[d] for d in dni]
-
-    fig, ax = plt.subplots(figsize=(10, 4))
-    bars = ax.bar(labels, values, color='#2C7A4B', edgecolor='#1a4d2e', linewidth=0.8)
-
-    # Wartości nad słupkami
-    for bar, val in zip(bars, values):
-        if val > 0:
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.05,
-                    str(val), ha='center', va='bottom', fontsize=9, color='#1a4d2e')
-
-    ax.set_title('Przyjęcia leków — ostatnie 14 dni', fontsize=13, fontweight='bold', color='#1a4d2e')
-    ax.set_ylabel('Liczba przyjęć')
-    ax.set_ylim(0, max(max(values) + 1, 5))
-    ax.set_facecolor('#f8fdf9')
-    fig.patch.set_facecolor('#f8fdf9')
-    ax.tick_params(axis='x', rotation=45, labelsize=8)
-    ax.grid(axis='y', linestyle='--', alpha=0.4)
-    plt.tight_layout()
-
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=120)
-    plt.close(fig)
-    buf.seek(0)
-
-    return HttpResponse(buf, content_type='image/png')
-
-
-@login_required
-def import_csv(request):
-    from .forms import ImportCSVForm
-    bledy = []
-    sukces = 0
-
+def usun_lek(request, pk):
+    lek = get_object_or_404(Lek, pk=pk, uzytkownik=request.user)
     if request.method == 'POST':
-        form = ImportCSVForm(request.POST, request.FILES)
-        if form.is_valid():
-            plik = request.FILES['plik']
-
-            # Sprawdź rozszerzenie
-            if not plik.name.endswith('.csv'):
-                bledy.append('Plik musi mieć rozszerzenie .csv')
-            else:
-                try:
-                    decoded = plik.read().decode('utf-8-sig')  # obsługuje BOM
-                    reader = csv.DictReader(io.StringIO(decoded))
-
-                    wymagane = {'nazwa', 'substancja_aktywna', 'instrukcja'}
-                    if not wymagane.issubset(set(reader.fieldnames or [])):
-                        bledy.append(f'Brakuje kolumn. Wymagane: {", ".join(wymagane)}')
-                    else:
-                        for i, row in enumerate(reader, start=2):
-                            nazwa = row.get('nazwa', '').strip()
-                            substancja = row.get('substancja_aktywna', '').strip()
-                            instrukcja = row.get('instrukcja', '').strip()
-
-                            if not nazwa:
-                                bledy.append(f'Wiersz {i}: brak nazwy leku')
-                                continue
-
-                            Lek.objects.get_or_create(
-                                nazwa=nazwa,
-                                uzytkownik=request.user,
-                                defaults={
-                                    'substancja_aktywna': substancja,
-                                    'instrukcja': instrukcja,
-                                }
-                            )
-                            sukces += 1
-
-                except Exception as e:
-                    bledy.append(f'Błąd odczytu pliku: {e}')
-
-            if not bledy:
-                return redirect('strona_glowna')
-    else:
-        form = ImportCSVForm()
-
-    return render(request, 'leki/import_csv.html', {
-        'form': form,
-        'bledy': bledy,
-        'sukces': sukces,
-        'tytul': 'Importuj leki z CSV',
-    })
-
-
-from django.core.paginator import Paginator
-
-@login_required
-def lista_lekow(request):
-    # --- Filtrowanie ---
-    nazwa = request.GET.get('nazwa', '')
-    substancja = request.GET.get('substancja', '')
-    
-    leki = Lek.objects.filter(uzytkownik=request.user)
-    
-    if nazwa:
-        leki = leki.filter(nazwa__icontains=nazwa)
-    if substancja:
-        leki = leki.filter(substancja_aktywna__icontains=substancja)
-
-    # --- Stronicowanie ---
-    na_strone = int(request.GET.get('na_strone', 5))
-    paginator = Paginator(leki, na_strone)
-    strona = request.GET.get('strona', 1)
-    leki_strona = paginator.get_page(strona)
-
-    return render(request, 'leki/lista_lekow.html', {
-        'leki': leki_strona,
-        'paginator': paginator,
-        'nazwa': nazwa,
-        'substancja': substancja,
-        'na_strone': na_strone,
-    })
-
-
-@login_required
-def lista_przyjec(request):
-    # --- Filtrowanie ---
-    nazwa_leku = request.GET.get('nazwa_leku', '')
-    status = request.GET.get('status', '')
-    data_od = request.GET.get('data_od', '')
-    samopoczucie = request.GET.get('samopoczucie', '')
-
-    przyjecia = PrzyjecieLeku.objects.filter(uzytkownik=request.user).select_related('lek')
-
-    if nazwa_leku:
-        przyjecia = przyjecia.filter(lek__nazwa__icontains=nazwa_leku)
-    if status:
-        przyjecia = przyjecia.filter(status=status)
-    if data_od:
-        przyjecia = przyjecia.filter(data_godzina__date__gte=data_od)
-    if samopoczucie:
-        przyjecia = przyjecia.filter(notatka_samopoczucia__icontains=samopoczucie)
-
-    # --- Stronicowanie ---
-    na_strone = int(request.GET.get('na_strone', 5))
-    paginator = Paginator(przyjecia, na_strone)
-    strona = request.GET.get('strona', 1)
-    przyjecia_strona = paginator.get_page(strona)
-
-    return render(request, 'leki/lista_przyjec.html', {
-        'przyjecia': przyjecia_strona,
-        'page_obj': przyjecia_strona,
-        'paginator': paginator,
-        'nazwa_leku': nazwa_leku,
-        'status': status,
-        'data_od': data_od,
-        'samopoczucie': samopoczucie,
-        'na_strone': na_strone,
-    })
-    
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
+        nazwa = lek.nazwa
+        lek.delete()
+        messages.success(request, f'Lek „{nazwa}" został usunięty.')
+        return redirect('lista_lekow')
+    return render(request, 'leki/potwierdz_usuniecie.html', {'lek': lek})

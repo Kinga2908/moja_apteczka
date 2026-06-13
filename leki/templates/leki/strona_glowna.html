@@ -134,20 +134,9 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h2 class="mb-0 fs-5"><i class="fas fa-history me-2"></i>Historia przyjęć</h2>
-        <div class="d-flex gap-2">
-            <a href="{% url 'eksport_csv' %}" class="btn btn-outline-success btn-sm">
-                <i class="fas fa-file-csv me-1"></i>Eksport CSV
-            </a>
-            <a href="{% url 'eksport_xlsx' %}" class="btn btn-outline-success btn-sm">
-                <i class="fas fa-file-excel me-1"></i>Eksport XLSX
-            </a>
-            <a href="{% url 'import_csv' %}" class="btn btn-outline-primary btn-sm">
-                <i class="fas fa-upload me-1"></i>Import CSV
-            </a>
-            <a href="{% url 'dodaj_przyjecie' %}" class="btn btn-primary btn-sm">
-                <i class="fas fa-plus me-1"></i>Dodaj przyjęcie
-            </a>
-        </div>
+        <a href="{% url 'dodaj_przyjecie' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>Dodaj przyjęcie
+        </a>
     </div>
     <div class="card-body">
         {% if przyjecia %}
@@ -198,37 +187,11 @@
 
 {# ── Style i skrypty ─────────────────────────────────────────────────────── #}
 <style>
-<<<<<<< HEAD
 .fade-card { opacity:0; transform:translateY(20px); transition:opacity .5s ease,transform .5s ease; }
 .fade-card.visible { opacity:1; transform:translateY(0); }
 .przyjecie-row.dragging { opacity:.4; background:#e8f5e9 !important; }
 .przyjecie-row.drag-over { border-top:3px solid #2c7a4b; }
 @keyframes flash { 0%{background:#c8e6c9;} 100%{background:transparent;} }
-=======
-  .fade-card {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.5s ease, transform 0.5s ease;
-  }
-  .fade-card.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  .przyjecie-row.dragging {
-    opacity: 0.4;
-    background: #e8f5e9 !important;
-  }
-  .przyjecie-row.drag-over {
-    border-top: 3px solid #2c7a4b;
-  }
-  .przyjecie-row.drop-flash {
-    animation: flash 0.4s ease;
-  }
-  @keyframes flash {
-    0%   { background: #c8e6c9; }
-    100% { background: transparent; }
-  }
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -244,13 +207,12 @@
 (function(){
   const canvas = document.getElementById('przyjecia-chart');
   if (!canvas) return;
-<<<<<<< HEAD
   const offset = Number("{{ tydzien_offset|default:'0' }}");
   const today = new Date(); today.setDate(today.getDate() + offset * 7);
   const labels=[], counts={}, dateKeys=[];
   for(let i=6;i>=0;i--){
     const d=new Date(today); d.setDate(today.getDate()-i);
-    const key=d.toISOString().slice(0,10);
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const label=d.toLocaleDateString('pl-PL',{weekday:'short',day:'numeric',month:'numeric'});
     labels.push(label); counts[key]=0; dateKeys.push(key);
   }
@@ -261,108 +223,6 @@
     type:'bar',
     data:{labels,datasets:[{label:'Liczba przyjęć',data:Object.values(counts),backgroundColor:'rgba(44,122,75,.7)',borderColor:'rgba(44,122,75,1)',borderWidth:2,borderRadius:6}]},
     options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,suggestedMax:5,ticks:{stepSize:1}},x:{grid:{display:false}}}}
-=======
-
-  const offset = {{ tydzien_offset }};
-  const today = new Date();
-  today.setDate(today.getDate() + offset * 7);
-
-  const labels = [];
-  const counts = {};
-  const dateKeys = [];
-
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    const label = d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'numeric' });
-    labels.push(label);
-    counts[key] = 0;
-    dateKeys.push(key);
-  }
-
-  const zakres = document.getElementById('zakres-dat');
-  if (zakres && dateKeys.length) {
-    zakres.textContent = `${dateKeys[0]} – ${dateKeys[6]}`;
-  }
-
-  document.querySelectorAll('[data-date]').forEach(el => {
-    const d = el.dataset.date;
-    if (d in counts) counts[d]++;
-  });
-
-  new Chart(canvas, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Liczba przyjęć',
-        data: Object.values(counts),
-        backgroundColor: 'rgba(44, 122, 75, 0.7)',
-        borderColor: 'rgba(44, 122, 75, 1)',
-        borderWidth: 2,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} przyjęć` } }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          suggestedMax: 5,
-          ticks: { stepSize: 1 },
-          grid: { color: 'rgba(0,0,0,0.05)' }
-        },
-        x: { grid: { display: false } }
-      }
-    }
-  });
-})();
-
-(function() {
-  const tbody = document.getElementById('przyjecia-tbody');
-  if (!tbody) return;
-
-  let dragged = null;
-
-  tbody.querySelectorAll('.przyjecie-row').forEach(row => {
-    row.setAttribute('draggable', 'true');
-
-    row.addEventListener('dragstart', () => {
-      dragged = row;
-      setTimeout(() => row.classList.add('dragging'), 0);
-    });
-
-    row.addEventListener('dragend', () => {
-      row.classList.remove('dragging');
-      tbody.querySelectorAll('.przyjecie-row').forEach(r => r.classList.remove('drag-over'));
-      dragged = null;
-    });
-
-    row.addEventListener('dragover', e => {
-      e.preventDefault();
-      if (row !== dragged) row.classList.add('drag-over');
-    });
-
-    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
-
-    row.addEventListener('drop', e => {
-      e.preventDefault();
-      row.classList.remove('drag-over');
-      if (dragged && dragged !== row) {
-        const rows = [...tbody.querySelectorAll('.przyjecie-row')];
-        const fromIdx = rows.indexOf(dragged);
-        const toIdx   = rows.indexOf(row);
-        tbody.insertBefore(dragged, fromIdx < toIdx ? row.nextSibling : row);
-        dragged.classList.add('drop-flash');
-        setTimeout(() => dragged.classList.remove('drop-flash'), 400);
-      }
-    });
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
   });
 })();
 </script>

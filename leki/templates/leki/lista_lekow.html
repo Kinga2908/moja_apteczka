@@ -1,5 +1,4 @@
 {% extends 'leki/base.html' %}
-<<<<<<< HEAD
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -14,19 +13,16 @@
     </div>
 </div>
 
-{# ── FILTROWANIE ────────────────────────────────────────────────────────────── #}
-<div class="card mb-4" id="karta-filtrowania">
+{# ── FILTROWANIE ─────────────────────────────────────────────────────────── #}
+<div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center"
-         id="naglowek-filtrowania" style="cursor:pointer;"
-         onclick="toggleFiltr()">
-        <h5 class="mb-0">
-            <i class="fas fa-filter me-2"></i>Filtrowanie i wyszukiwanie
-        </h5>
+         style="cursor:pointer;" onclick="toggleFiltr()">
+        <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtrowanie i wyszukiwanie</h5>
         <i class="fas fa-chevron-down" id="ikona-filtr"></i>
     </div>
     <div id="panel-filtrowania">
         <div class="card-body">
-            <form method="get" id="form-filtr">
+            <form method="get">
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label small fw-bold">{{ form.nazwa.label }}</label>
@@ -59,14 +55,13 @@
                         </a>
                     </div>
                 </div>
-                {# Zachowaj na_stronie przy filtrowaniu #}
                 <input type="hidden" name="na_stronie" value="{{ wyniki_na_stronie }}">
             </form>
         </div>
     </div>
 </div>
 
-{# ── TABELA ─────────────────────────────────────────────────────────────────── #}
+{# ── TABELA ──────────────────────────────────────────────────────────────── #}
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span class="small text-muted">
@@ -87,81 +82,25 @@
     </div>
     <div class="card-body p-0">
         {% if leki %}
-        <table class="table table-hover mb-0" id="tabela-lekow">
-=======
-{% block content %}
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-capsules me-2"></i>Leki w apteczce</h1>
-    <a href="{% url 'dodaj_lek' %}" class="btn btn-primary">
-        <i class="fas fa-plus me-1"></i>Dodaj lek
-    </a>
-</div>
-
-<!-- Formularz filtrowania -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h2 class="fs-5 mb-0"><i class="fas fa-search me-2"></i>Szukaj i filtruj</h2>
-    </div>
-    <div class="card-body">
-        <form method="get">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label fw-bold">Nazwa leku</label>
-                    <input type="text" name="nazwa" value="{{ nazwa }}"
-                           class="form-control" placeholder="Np. Apap...">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-bold">Substancja aktywna</label>
-                    <input type="text" name="substancja" value="{{ substancja }}"
-                           class="form-control" placeholder="Np. paracetamol...">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-bold">Wyników na stronę</label>
-                    <select name="na_strone" class="form-select">
-                        <option value="5" {% if na_strone == 5 %}selected{% endif %}>5</option>
-                        <option value="10" {% if na_strone == 10 %}selected{% endif %}>10</option>
-                        <option value="25" {% if na_strone == 25 %}selected{% endif %}>25</option>
-                        <option value="50" {% if na_strone == 50 %}selected{% endif %}>50</option>
-                    </select>
-                </div>
-                <div class="col-md-2 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-search me-1"></i>Szukaj
-                    </button>
-                    <a href="{% url 'lista_lekow' %}" class="btn btn-outline-secondary w-100">
-                        <i class="fas fa-times"></i>
-                    </a>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Tabela -->
-<div class="card">
-    <div class="card-body">
-        {% if leki %}
-        <p class="text-muted small">Znaleziono {{ paginator.count }} leków</p>
-        <table class="table table-hover">
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
+        <table class="table table-hover mb-0">
             <thead>
                 <tr>
+                    <th style="width:30px;"></th>
                     <th><i class="fas fa-pills me-1"></i>Nazwa</th>
                     <th><i class="fas fa-flask me-1"></i>Substancja aktywna</th>
-<<<<<<< HEAD
                     <th><i class="fas fa-tag me-1"></i>Cena opak.</th>
                     <th><i class="fas fa-tag me-1"></i>Koszt/dawkę</th>
                     <th><i class="fas fa-barcode me-1"></i>Kod EAN</th>
-=======
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
                     <th><i class="fas fa-info-circle me-1"></i>Instrukcja</th>
+                    <th><i class="fas fa-cog me-1"></i>Akcje</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tabela-body">
                 {% for lek in leki %}
-<<<<<<< HEAD
-                <tr class="wiersz-leku">
+                <tr class="wiersz-leku" draggable="true" data-id="{{ lek.pk }}">
+                    <td class="drag-handle text-muted" style="cursor:grab; user-select:none;">
+                        <i class="fas fa-grip-vertical"></i>
+                    </td>
                     <td><strong>{{ lek.nazwa }}</strong></td>
                     <td>{{ lek.substancja_aktywna }}</td>
                     <td>{% if lek.cena %}{{ lek.cena }} zł{% else %}<span class="text-muted">—</span>{% endif %}</td>
@@ -174,17 +113,17 @@
                     </td>
                     <td>{% if lek.kod_kreskowy %}<code>{{ lek.kod_kreskowy }}</code>{% else %}—{% endif %}</td>
                     <td class="small text-muted">{{ lek.instrukcja|truncatechars:50 }}</td>
-=======
-                <tr>
-                    <td>{{ lek.nazwa }}</td>
-                    <td>{{ lek.substancja_aktywna }}</td>
-                    <td>{{ lek.instrukcja }}</td>
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
+                    <td>
+                        <a href="{% url 'usun_lek' lek.pk %}"
+                           class="btn btn-sm btn-outline-danger"
+                           title="Usuń lek">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-<<<<<<< HEAD
         {% else %}
         <div class="p-4 text-center text-muted">
             <i class="fas fa-search fa-2x mb-3 d-block"></i>
@@ -193,7 +132,7 @@
         {% endif %}
     </div>
 
-    {# ── PAGINACJA ──────────────────────────────────────────────────────────── #}
+    {# ── PAGINACJA ─────────────────────────────────────────────────────────── #}
     {% if paginator.num_pages > 1 %}
     <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
         <nav>
@@ -210,19 +149,15 @@
                     </a>
                 </li>
                 {% endif %}
-
                 {% for num in paginator.page_range %}
                     {% if num == leki.number %}
-                    <li class="page-item active">
-                        <span class="page-link">{{ num }}</span>
-                    </li>
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
                     {% elif num >= leki.number|add:"-2" and num <= leki.number|add:"2" %}
                     <li class="page-item">
                         <a class="page-link" href="?{{ get_params }}&strona={{ num }}&na_stronie={{ wyniki_na_stronie }}">{{ num }}</a>
                     </li>
                     {% endif %}
                 {% endfor %}
-
                 {% if leki.has_next %}
                 <li class="page-item">
                     <a class="page-link" href="?{{ get_params }}&strona={{ leki.next_page_number }}&na_stronie={{ wyniki_na_stronie }}">
@@ -237,13 +172,9 @@
                 {% endif %}
             </ul>
         </nav>
-
-        {# Skok do strony #}
-        <form method="get" class="d-flex gap-2 align-items-center" id="form-skok">
+        <form method="get" class="d-flex gap-2 align-items-center">
             {% for key, val in request.GET.items %}
-                {% if key != 'strona' %}
-                <input type="hidden" name="{{ key }}" value="{{ val }}">
-                {% endif %}
+                {% if key != 'strona' %}<input type="hidden" name="{{ key }}" value="{{ val }}">{% endif %}
             {% endfor %}
             <input type="hidden" name="na_stronie" value="{{ wyniki_na_stronie }}">
             <label class="small mb-0">Przejdź do strony:</label>
@@ -258,44 +189,70 @@
     {% endif %}
 </div>
 
+<style>
+.wiersz-leku { transition: background 0.2s ease; }
+.wiersz-leku.dragging { opacity: 0.4; background: #e8f5e9 !important; }
+.wiersz-leku.drag-over { border-top: 3px solid #2c7a4b; }
+@keyframes dropFlash { 0%{background:#c8e6c9;} 100%{background:transparent;} }
+.drop-flash { animation: dropFlash 0.5s ease; }
+</style>
+
 <script>
-// ── JS ELEMENT 1: Animowane rozwijanie/zwijanie panelu filtrów ─────────────────
+// ── JS: Animowane filtrowanie ─────────────────────────────────────────────────
 function toggleFiltr() {
     const panel = document.getElementById('panel-filtrowania');
     const ikona = document.getElementById('ikona-filtr');
     if (panel.style.display === 'none') {
         panel.style.display = '';
-        panel.style.animation = 'slideDown 0.3s ease';
         ikona.classList.replace('fa-chevron-right', 'fa-chevron-down');
     } else {
-        panel.style.animation = 'slideUp 0.3s ease';
-        setTimeout(() => { panel.style.display = 'none'; }, 280);
+        panel.style.display = 'none';
         ikona.classList.replace('fa-chevron-down', 'fa-chevron-right');
     }
 }
 
-// Jeśli są aktywne filtry – pokaż panel; jeśli nie – zwiń
-(function(){
-    const params = new URLSearchParams(window.location.search);
-    const filtrujace = ['nazwa','substancja','cena_min','cena_max','kod_kreskowy'];
-    const maFiltr = filtrujace.some(k => params.get(k));
-    if (!maFiltr) {
-        // Zwiń panel domyślnie gdy brak filtrów
-        // (opcjonalnie – zostaw otwarty jeśli wolisz)
-    }
+// ── JS: Drag & Drop wierszy tabeli ────────────────────────────────────────────
+(function () {
+    const tbody = document.getElementById('tabela-body');
+    if (!tbody) return;
+    let dragged = null;
+
+    tbody.querySelectorAll('.wiersz-leku').forEach(row => {
+        row.addEventListener('dragstart', e => {
+            dragged = row;
+            setTimeout(() => row.classList.add('dragging'), 0);
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        row.addEventListener('dragend', () => {
+            row.classList.remove('dragging');
+            tbody.querySelectorAll('.wiersz-leku').forEach(r => r.classList.remove('drag-over'));
+            dragged = null;
+        });
+        row.addEventListener('dragover', e => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (row !== dragged) {
+                tbody.querySelectorAll('.wiersz-leku').forEach(r => r.classList.remove('drag-over'));
+                row.classList.add('drag-over');
+            }
+        });
+        row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+        row.addEventListener('drop', e => {
+            e.preventDefault();
+            row.classList.remove('drag-over');
+            if (dragged && dragged !== row) {
+                const rows = [...tbody.querySelectorAll('.wiersz-leku')];
+                const fromIdx = rows.indexOf(dragged);
+                const toIdx = rows.indexOf(row);
+                tbody.insertBefore(dragged, fromIdx < toIdx ? row.nextSibling : row);
+                dragged.classList.add('drop-flash');
+                setTimeout(() => dragged.classList.remove('drop-flash'), 500);
+            }
+        });
+    });
 })();
 
-@keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
-@keyframes slideUp   { from { opacity:1; transform:translateY(0); }   to { opacity:0; transform:translateY(-10px); } }
-
-// ── JS ELEMENT 2: Podświetlanie wierszy tabeli z efektem ─────────────────────
-document.querySelectorAll('.wiersz-leku').forEach(row => {
-    row.style.transition = 'background 0.2s ease';
-    row.addEventListener('mouseenter', () => row.style.background = '#e8f5e9');
-    row.addEventListener('mouseleave', () => row.style.background = '');
-});
-
-// ── Zmiana liczby wyników na stronę ──────────────────────────────────────────
+// ── JS: Zmiana liczby wyników na stronę ──────────────────────────────────────
 function zmienNaStronie(wartosc) {
     const url = new URL(window.location.href);
     url.searchParams.set('na_stronie', wartosc);
@@ -304,16 +261,3 @@ function zmienNaStronie(wartosc) {
 }
 </script>
 {% endblock %}
-=======
-
-        <!-- Stronicowanie -->
-        {% include 'leki/paginacja.html' %}
-
-        {% else %}
-        <p class="text-muted"><i class="fas fa-info-circle me-1"></i>Brak wyników.</p>
-        {% endif %}
-    </div>
-</div>
-
-{% endblock %}
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6

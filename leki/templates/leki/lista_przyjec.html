@@ -1,22 +1,13 @@
 {% extends 'leki/base.html' %}
-<<<<<<< HEAD
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-history me-2"></i>Historia przyjęć</h1>
     <a href="{% url 'dodaj_przyjecie' %}" class="btn btn-primary btn-sm">
-=======
-{% block content %}
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-history me-2"></i>Historia przyjęć</h1>
-    <a href="{% url 'dodaj_przyjecie' %}" class="btn btn-primary">
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
         <i class="fas fa-plus me-1"></i>Dodaj przyjęcie
     </a>
 </div>
 
-<<<<<<< HEAD
 {# ── FILTROWANIE ────────────────────────────────────────────────────────────── #}
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center"
@@ -90,68 +81,6 @@
             <thead>
                 <tr>
                     <th><i class="fas fa-grip-vertical me-1"></i></th>
-=======
-<!-- Formularz filtrowania -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h2 class="fs-5 mb-0"><i class="fas fa-search me-2"></i>Szukaj i filtruj</h2>
-    </div>
-    <div class="card-body">
-        <form method="get">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Nazwa leku</label>
-                    <input type="text" name="nazwa_leku" value="{{ nazwa_leku }}"
-                           class="form-control" placeholder="Np. Apap...">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-bold">Status</label>
-                    <select name="status" class="form-select">
-                        <option value="" {% if not status %}selected{% endif %}>Wszystkie</option>
-                        <option value="zazyte" {% if status == 'zazyte' %}selected{% endif %}>Zażyte</option>
-                        <option value="niezazyte" {% if status == 'niezazyte' %}selected{% endif %}>Niezażyte</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-bold">Data od</label>
-                    <input type="date" name="data_od" value="{{ data_od }}" class="form-control">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-bold">Samopoczucie</label>
-                    <input type="text" name="samopoczucie" value="{{ samopoczucie }}"
-                           class="form-control" placeholder="Np. lepiej...">
-                </div>
-                <div class="col-md-1">
-                    <label class="form-label fw-bold">Na stronę</label>
-                    <select name="na_strone" class="form-select">
-                        <option value="5" {% if na_strone == 5 %}selected{% endif %}>5</option>
-                        <option value="10" {% if na_strone == 10 %}selected{% endif %}>10</option>
-                        <option value="25" {% if na_strone == 25 %}selected{% endif %}>25</option>
-                        <option value="50" {% if na_strone == 50 %}selected{% endif %}>50</option>
-                    </select>
-                </div>
-                <div class="col-md-2 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-search me-1"></i>Szukaj
-                    </button>
-                    <a href="{% url 'lista_przyjec' %}" class="btn btn-outline-secondary w-100">
-                        <i class="fas fa-times"></i>
-                    </a>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Tabela -->
-<div class="card">
-    <div class="card-body">
-        {% if przyjecia %}
-        <p class="text-muted small">Znaleziono {{ paginator.count }} przyjęć</p>
-        <table class="table table-hover">
-            <thead>
-                <tr>
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
                     <th><i class="fas fa-pills me-1"></i>Lek</th>
                     <th><i class="fas fa-calendar me-1"></i>Data i godzina</th>
                     <th><i class="fas fa-check-circle me-1"></i>Status</th>
@@ -159,20 +88,12 @@
                     <th><i class="fas fa-cog me-1"></i>Akcje</th>
                 </tr>
             </thead>
-<<<<<<< HEAD
             <tbody id="przyjecia-tbody">
                 {% for p in przyjecia %}
                 <tr class="przyjecie-row" data-id="{{ p.pk }}">
                     <td style="color:#aaa; cursor:grab;"><i class="fas fa-grip-vertical"></i></td>
                     <td><strong>{{ p.lek.nazwa }}</strong></td>
                     <td>{{ p.data_godzina|date:"d.m.Y H:i" }}</td>
-=======
-            <tbody>
-                {% for p in przyjecia %}
-                <tr>
-                    <td>{{ p.lek.nazwa }}</td>
-                    <td>{{ p.data_godzina }}</td>
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
                     <td>
                         <a href="{% url 'zmien_status' p.pk %}" style="text-decoration:none;">
                             {% if p.status == 'zazyte' %}
@@ -182,21 +103,19 @@
                             {% endif %}
                         </a>
                     </td>
-<<<<<<< HEAD
                     <td class="small text-muted">{{ p.notatka_samopoczucia|truncatechars:40 }}</td>
-=======
-                    <td>{{ p.notatka_samopoczucia }}</td>
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6
                     <td>
                         <a href="{% url 'edytuj_przyjecie' p.pk %}" class="btn btn-sm btn-outline-secondary">
                             <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{% url 'usun_przyjecie' p.pk %}" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-trash"></i>
                         </a>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-<<<<<<< HEAD
         {% else %}
         <div class="p-4 text-center text-muted">
             <i class="fas fa-search fa-2x mb-3 d-block"></i>
@@ -326,16 +245,3 @@ function zmienNaStronie(wartosc) {
 }
 </script>
 {% endblock %}
-=======
-
-        <!-- Stronicowanie -->
-        {% include 'leki/paginacja.html' %}
-
-        {% else %}
-        <p class="text-muted"><i class="fas fa-info-circle me-1"></i>Brak wyników.</p>
-        {% endif %}
-    </div>
-</div>
-
-{% endblock %}
->>>>>>> d96afb8801182f615df8a8b0e22585a72c05cfe6

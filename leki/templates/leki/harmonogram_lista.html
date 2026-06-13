@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-bell me-2"></i>Przypomnienia o lekach</h1>
-    <a href="{% url 'dodaj_harmonogram' %}" class="btn btn-primary">
+    <a href="{% url 'dodaj_harmonogram' %}" class="btn btn-primary btn-sm">
         <i class="fas fa-plus me-1"></i>Dodaj przypomnienie
     </a>
 </div>
@@ -14,25 +14,109 @@
 </div>
 {% endfor %}
 
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="alert alert-info small mb-0">
-            <i class="fas fa-info-circle me-1"></i>
-            <strong>Jak działają przypomnienia?</strong>
-            Ustaw godzinę dla każdego leku. 
-        </div>
+{# ── DO ZAŻYCIA DZIŚ ──────────────────────────────────────────────────────── #}
+{% if do_zazycja %}
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-warning bg-opacity-10">
+        <h5 class="mb-0 text-warning">
+            <i class="fas fa-hourglass-half me-2"></i>
+            Do zażycia dziś ({{ do_zazycja|length }})
+        </h5>
     </div>
-</div>
-
-<div class="card">
-    <div class="card-body">
-        {% if harmonogramy %}
-        <table class="table table-hover">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
             <thead>
                 <tr>
                     <th><i class="fas fa-pills me-1"></i>Lek</th>
                     <th><i class="fas fa-clock me-1"></i>Godzina</th>
-                    <th><i class="fas fa-toggle-on me-1"></i>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in do_zazycja %}
+                <tr class="align-middle">
+                    <td><strong>{{ h.lek.nazwa }}</strong></td>
+                    <td>
+                        <span class="badge bg-warning text-dark fs-6">
+                            {{ h.godzina|time:"H:i" }}
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'potwierdz_przyjecie' h.pk %}"
+                           class="btn btn-success btn-sm">
+                            <i class="fas fa-check me-1"></i>Zażyłem/am
+                        </a>
+                        <a href="{% url 'usun_harmonogram' h.pk %}"
+                           class="btn btn-outline-danger btn-sm"
+                           onclick="return confirm('Usunąć to przypomnienie?')">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{# ── JUŻ ZAŻYTE DZIŚ ─────────────────────────────────────────────────────── #}
+{% if juz_zazyto %}
+<div class="card mb-4 border-success">
+    <div class="card-header bg-success bg-opacity-10">
+        <h5 class="mb-0 text-success">
+            <i class="fas fa-check-circle me-2"></i>
+            Zażyte dziś ({{ juz_zazyto|length }})
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th><i class="fas fa-pills me-1"></i>Lek</th>
+                    <th><i class="fas fa-clock me-1"></i>Planowana godzina</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in juz_zazyto %}
+                <tr class="align-middle">
+                    <td>
+                        <span class="text-muted"><s>{{ h.lek.nazwa }}</s></span>
+                        <span class="badge bg-success ms-2">✓</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-success fs-6">
+                            {{ h.godzina|time:"H:i" }}
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'usun_harmonogram' h.pk %}"
+                           class="btn btn-outline-danger btn-sm"
+                           onclick="return confirm('Usunąć to przypomnienie?')">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{# ── WSZYSTKIE HARMONOGRAMY ───────────────────────────────────────────────── #}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Wszystkie przypomnienia</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if harmonogramy %}
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th><i class="fas fa-pills me-1"></i>Lek</th>
+                    <th><i class="fas fa-clock me-1"></i>Godzina</th>
                     <th></th>
                 </tr>
             </thead>
@@ -43,16 +127,13 @@
                     <td>
                         <span class="badge bg-success fs-6">{{ h.godzina|time:"H:i" }}</span>
                     </td>
-                    <td>
-                        {% if h.aktywne %}
-                        <span class="badge bg-success">Aktywne</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Wyłączone</span>
-                        {% endif %}
-                    </td>
                     <td class="text-end">
+                        <a href="{% url 'potwierdz_przyjecie' h.pk %}"
+                           class="btn btn-success btn-sm">
+                            <i class="fas fa-check me-1"></i>Zażyłem/am
+                        </a>
                         <a href="{% url 'usun_harmonogram' h.pk %}"
-                           class="btn btn-sm btn-outline-danger"
+                           class="btn btn-outline-danger btn-sm"
                            onclick="return confirm('Usunąć to przypomnienie?')">
                             <i class="fas fa-trash"></i>
                         </a>
@@ -62,11 +143,11 @@
             </tbody>
         </table>
         {% else %}
-        <p class="text-muted">
-            <i class="fas fa-info-circle me-1"></i>
+        <div class="p-4 text-center text-muted">
+            <i class="fas fa-bell-slash fa-2x mb-3 d-block"></i>
             Brak przypomnień.
             <a href="{% url 'dodaj_harmonogram' %}">Dodaj pierwsze przypomnienie!</a>
-        </p>
+        </div>
         {% endif %}
     </div>
 </div>

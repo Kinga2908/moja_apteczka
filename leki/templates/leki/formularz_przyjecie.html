@@ -1,0 +1,208 @@
+{% extends 'leki/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-7">
+<div class="card">
+    <div class="card-header">
+        <h1 class="fs-4 mb-0"><i class="fas fa-clock me-2"></i>{{ tytul }}</h1>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">{{ form.lek.label }}</label>
+                {{ form.lek }}
+            </div>
+
+            {# Ostrzeżenie o interakcjach – pojawia się dynamicznie #}
+            <div id="box-interakcji" style="display:none;" class="alert alert-warning">
+                <div class="fw-bold mb-2">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Uwaga — możliwe interakcje z lekami przyjętymi dziś:
+                </div>
+                <ul id="lista-interakcji" class="mb-0 small"></ul>
+            </div>
+
+            {# Ostrzeżenie o odstępie czasowym #}
+            <div id="box-odstep" style="display:none;" class="alert alert-info">
+                <div class="fw-bold mb-2">
+                    <i class="fas fa-hourglass-half me-1"></i>
+                    Wymagany odstęp czasowy:
+                </div>
+                <ul id="lista-odstep" class="mb-0 small"></ul>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">{{ form.data_godzina.label }}</label>
+                {{ form.data_godzina }}
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">{{ form.status.label }}</label>
+                {{ form.status }}
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">{{ form.notatka_samopoczucia.label }}</label>
+                {{ form.notatka_samopoczucia }}
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>Zapisz
+                </button>
+                <a href="{% url 'lista_przyjec' %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i>Anuluj
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// BAZA INTERAKCJI: które leki nie powinny być łączone
+// Format: 'lek_a': [{ z: 'lek_b', opis: '...', odstep: 'X godzin' }]
+// odstep: null = nie łączyć wcale, string = wymagany odstęp
+// ════════════════════════════════════════════════════════════════════════════
+const INTERAKCJE = [
+    // Żelazo i inne minerały
+    { lekA: 'żelazo', lekB: 'magnez',       opis: 'Żelazo i magnez wzajemnie hamują wchłanianie.',                                   odstep: '2 godziny' },
+    { lekA: 'żelazo', lekB: 'wapń',         opis: 'Wapń blokuje wchłanianie żelaza.',                                                odstep: '2 godziny' },
+    { lekA: 'żelazo', lekB: 'cynk',         opis: 'Cynk i żelazo konkurują o wchłanianie.',                                          odstep: '2 godziny' },
+    { lekA: 'żelazo', lekB: 'lewotyroksyna',opis: 'Żelazo zmniejsza wchłanianie lewotyroksyny.',                                     odstep: '4 godziny' },
+    { lekA: 'żelazo', lekB: 'ciprofloksacyna', opis: 'Żelazo zmniejsza wchłanianie antybiotyku o 90%.',                             odstep: '6 godzin' },
+    { lekA: 'magnez', lekB: 'lewotyroksyna',opis: 'Magnez zmniejsza wchłanianie lewotyroksyny.',                                     odstep: '4 godziny' },
+    { lekA: 'wapń',   lekB: 'lewotyroksyna',opis: 'Wapń blokuje wchłanianie lewotyroksyny.',                                         odstep: '4 godziny' },
+    { lekA: 'wapń',   lekB: 'ciprofloksacyna', opis: 'Wapń zmniejsza wchłanianie antybiotyku.',                                     odstep: '6 godzin' },
+
+    // Nazwy handlowe -> mapowanie
+    { lekA: 'apap',          lekB: 'warfaryna',     opis: 'Paracetamol (Apap) nasila działanie warfaryny.',           odstep: null },
+    { lekA: 'apap',          lekB: 'warfaryna 5',   opis: 'Paracetamol (Apap) nasila działanie warfaryny.',           odstep: null },
+    { lekA: 'acard',         lekB: 'ibuprofen',     opis: 'Acard (aspiryna) + ibuprofen osłabiają się wzajemnie.',    odstep: null },
+    { lekA: 'acard',         lekB: 'warfaryna',     opis: 'Acard (aspiryna) + warfaryna: bardzo wysokie ryzyko krwawień.', odstep: null },
+    { lekA: 'atoris',        lekB: 'amlodypina',    opis: 'Amlodypina zwiększa stężenie atorwastatyny (Atoris).',     odstep: null },
+    { lekA: 'metformin',     lekB: 'ibuprofen',     opis: 'NLPZ mogą uszkadzać nerki i zmniejszać wydalanie metforminy.', odstep: null },
+    { lekA: 'metformin',     lekB: 'ciprofloksacyna', opis: 'Cipro może zwiększać stężenie metforminy.',             odstep: null },
+    { lekA: 'metformin',     lekB: 'lewotyroksyna', opis: 'Metformina może zmniejszać skuteczność lewotyroksyny.',    odstep: '2 godziny' },
+
+    // Ibuprofen / NLPZ
+    { lekA: 'ibuprofen', lekB: 'aspiryna',      opis: 'Ibuprofen osłabia kardioprotekcyjne działanie aspiryny.',                     odstep: null },
+    { lekA: 'ibuprofen', lekB: 'warfaryna',     opis: 'NLPZ + warfaryna: bardzo wysokie ryzyko krwawień.',                          odstep: null },
+    { lekA: 'ibuprofen', lekB: 'ramipril',      opis: 'Ibuprofen osłabia działanie ramiprylu i może uszkadzać nerki.',              odstep: null },
+    { lekA: 'ibuprofen', lekB: 'metformina',    opis: 'NLPZ mogą uszkadzać nerki i zmniejszać wydalanie metforminy.',               odstep: null },
+    { lekA: 'ibuprofen', lekB: 'prednizon',     opis: 'NLPZ + kortykosteroidy: wysokie ryzyko wrzodów żołądka.',                   odstep: null },
+
+    // Statyny
+    { lekA: 'atorwastatyna', lekB: 'amlodypina',       opis: 'Amlodypina zwiększa stężenie atorwastatyny — ryzyko uszkodzenia mięśni.', odstep: null },
+    { lekA: 'simwastatyna',  lekB: 'amlodypina',       opis: 'Amlodypina zwiększa stężenie simwastatyny (limit dawki 20 mg).',          odstep: null },
+    { lekA: 'atorwastatyna', lekB: 'amoksycylina',     opis: 'Makrolidy mogą zwiększać stężenie statyny — ryzyko miopatii.',            odstep: null },
+
+    // Leki psychotropowe
+    { lekA: 'fluoksetyna',  lekB: 'tramadol',   opis: 'SSRI + tramadol: wysokie ryzyko zespołu serotoninowego.',                    odstep: null },
+    { lekA: 'sertralina',   lekB: 'tramadol',   opis: 'SSRI + tramadol: ryzyko zespołu serotoninowego i drgawek.',                  odstep: null },
+    { lekA: 'fluoksetyna',  lekB: 'metoprolol', opis: 'Fluoksetyna zwiększa stężenie metoprololu we krwi.',                         odstep: null },
+    { lekA: 'diazepam',     lekB: 'tramadol',   opis: 'Benzodiazepiny + opioidy: ryzyko zatrzymania oddechu.',                      odstep: null },
+
+    // Serce i nadciśnienie
+    { lekA: 'metoprolol', lekB: 'bisoprolol',   opis: 'Dwa beta-blokery jednocześnie — kumulacja działania, ryzyko bradykardii.',   odstep: null },
+    { lekA: 'ramipril',   lekB: 'potas',        opis: 'ACE inhibitor + suplementacja potasu: ryzyko hiperkaliemii.',                odstep: null },
+    { lekA: 'klopidogrel',lekB: 'omeprazol',    opis: 'Omeprazol znacząco osłabia działanie klopidogrelu. Użyj pantoprazolu.',      odstep: null },
+
+    // Antybiotyki
+    { lekA: 'amoksycylina',    lekB: 'warfaryna',  opis: 'Antybiotyki mogą nasilać działanie warfaryny — kontroluj INR.',           odstep: null },
+    { lekA: 'ciprofloksacyna', lekB: 'warfaryna',  opis: 'Ciprofloksacyna znacząco nasila działanie warfaryny.',                   odstep: null },
+    { lekA: 'ciprofloksacyna', lekB: 'metformina', opis: 'Cipro może zwiększać stężenie metforminy.',                              odstep: null },
+
+    // Pozostałe
+    { lekA: 'lewotyroksyna', lekB: 'metformina',  opis: 'Metformina może zmniejszać skuteczność lewotyroksyny.',                   odstep: '2 godziny' },
+    { lekA: 'warfaryna',     lekB: 'aspiryna',     opis: 'Warfaryna + aspiryna: bardzo wysokie ryzyko krwawień.',                  odstep: null },
+    { lekA: 'paracetamol',   lekB: 'warfaryna',    opis: 'Regularne stosowanie paracetamolu nasila działanie warfaryny.',          odstep: null },
+    { lekA: 'prednizon',     lekB: 'metformina',   opis: 'Kortykosteroidy podnoszą cukier i zmniejszają skuteczność metforminy.',  odstep: null },
+];
+
+// Leki przyjęte dziś – przekazane z serwera
+const LEKI_DZISIAJ = {{ leki_dzisiaj_json|safe }};
+
+const selectLek = document.getElementById('id_lek');
+const boxInterakcji = document.getElementById('box-interakcji');
+const listaInterakcji = document.getElementById('lista-interakcji');
+const boxOdstep = document.getElementById('box-odstep');
+const listaOdstep = document.getElementById('lista-odstep');
+
+function sprawdzInterakcje() {
+    const wybranyText = selectLek.options[selectLek.selectedIndex]?.text?.toLowerCase() || '';
+    if (!wybranyText || selectLek.value === '') {
+        boxInterakcji.style.display = 'none';
+        boxOdstep.style.display = 'none';
+        return;
+    }
+
+    const koliduje = [];
+    const odstepy = [];
+
+    INTERAKCJE.forEach(({ lekA, lekB, opis, odstep }) => {
+        // Sprawdź czy wybrany lek to lekA lub lekB
+        const wybranyToA = wybranyText.includes(lekA);
+        const wybranyToB = wybranyText.includes(lekB);
+
+        if (wybranyToA) {
+            // Szukaj lekB w lekach przyjętych dziś
+            LEKI_DZISIAJ.forEach(przyjety => {
+                if (przyjety.includes(lekB)) {
+                    if (odstep) {
+                        odstepy.push(`<strong>${przyjety}</strong> — ${opis} Wymagany odstęp: <strong>${odstep}</strong>.`);
+                    } else {
+                        koliduje.push(`<strong>${przyjety}</strong> — ${opis}`);
+                    }
+                }
+            });
+        }
+        if (wybranyToB) {
+            // Szukaj lekA w lekach przyjętych dziś
+            LEKI_DZISIAJ.forEach(przyjety => {
+                if (przyjety.includes(lekA)) {
+                    if (odstep) {
+                        odstepy.push(`<strong>${przyjety}</strong> — ${opis} Wymagany odstęp: <strong>${odstep}</strong>.`);
+                    } else {
+                        koliduje.push(`<strong>${przyjety}</strong> — ${opis}`);
+                    }
+                }
+            });
+        }
+    });
+
+    // Pokaż ostrzeżenia o kolizjach
+    if (koliduje.length > 0) {
+        listaInterakcji.innerHTML = koliduje.map(k => `<li class="mb-1">${k}</li>`).join('');
+        boxInterakcji.style.display = '';
+        boxInterakcji.style.animation = 'fadeInDown 0.3s ease';
+    } else {
+        boxInterakcji.style.display = 'none';
+    }
+
+    // Pokaż ostrzeżenia o odstępach
+    if (odstepy.length > 0) {
+        listaOdstep.innerHTML = odstepy.map(o => `<li class="mb-1">${o}</li>`).join('');
+        boxOdstep.style.display = '';
+        boxOdstep.style.animation = 'fadeInDown 0.3s ease';
+    } else {
+        boxOdstep.style.display = 'none';
+    }
+}
+
+if (selectLek) {
+    selectLek.addEventListener('change', sprawdzInterakcje);
+    sprawdzInterakcje(); // sprawdź przy wejściu na stronę
+}
+</script>
+
+<style>
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}
